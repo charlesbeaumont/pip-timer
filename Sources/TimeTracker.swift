@@ -168,16 +168,24 @@ final class TimeTracker {
         return URL(fileURLWithPath: path).appendingPathComponent("\(Self.dayString(date)).md")
     }
 
-    static func dayString(_ date: Date) -> String {
+    private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
+        return f
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    static func dayString(_ date: Date) -> String {
+        dayFormatter.string(from: date)
     }
 
     static func timeString(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f.string(from: date)
+        timeFormatter.string(from: date)
     }
 
     static func durationString(_ seconds: TimeInterval) -> String {
