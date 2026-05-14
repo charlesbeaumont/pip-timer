@@ -1,6 +1,6 @@
 name: Pip
 options:
-  bundleIdPrefix: io.theydo.charles
+  bundleIdPrefix: com.charlesbeaumont
   deploymentTarget:
     macOS: "13.0"
   createIntermediateGroups: true
@@ -25,7 +25,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: "Pip"
-        PRODUCT_BUNDLE_IDENTIFIER: io.theydo.charles.Pip
+        PRODUCT_BUNDLE_IDENTIFIER: com.charlesbeaumont.Pip
         INFOPLIST_FILE: Sources/Info.plist
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"

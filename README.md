@@ -1,11 +1,37 @@
 # Pip
 
+[![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)](#install)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/charlesbeaumont/pip-timer?include_prereleases&sort=semver)](https://github.com/charlesbeaumont/pip-timer/releases)
+
 A macOS menu-bar app that does two things in one click target:
 
 1. **Ambient standup signal.** A colored ring (green → amber → red) counts up since your last reset, so you notice when it's been a while and should stand up.
-2. **Simple time tracker** across four work modes — Maker, Manager, Reactive, Learning. Sessions written to your Second Brain as plain markdown.
+2. **Simple time tracker** across four work modes — Maker, Manager, Reactive, Learning. Sessions written to a folder of your choosing as plain markdown.
 
 No notifications other than the idle prompt, no main window, no Dock icon. Lives entirely in the menu bar.
+
+## Install
+
+### Download (recommended)
+
+1. Grab the latest `Pip-vX.Y.Z.zip` from [Releases](https://github.com/charlesbeaumont/pip-timer/releases).
+2. Unzip and drag `Pip.app` to `/Applications`.
+3. First launch: **right-click → Open**, then confirm. Pip is ad-hoc signed (no paid Apple Developer account behind it), so Gatekeeper asks once. After that it opens normally.
+
+To enable auto-launch on login: click the menu bar item → Configure → Launch at Login. Move `Pip.app` to `/Applications` first — `SMAppService` needs a stable location to survive reboots.
+
+### Build from source
+
+Requirements: macOS 13 Ventura+, Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+```bash
+brew install xcodegen
+xcodegen generate
+open Pip.xcodeproj
+```
+
+Then ⌘R in Xcode. No Dock icon — look in the menu bar.
 
 ## Menu bar display
 
@@ -74,25 +100,16 @@ Left or right click — both open the menu. There are no other primary actions: 
 - **Quit** → finalizes the active session cleanly.
 - **Hard kill** (`kill -9`) → leaks the active session. On next launch the app discards any orphan and starts paused (no retroactive guessing).
 
-## Build & run
+## Releases
 
-Requirements: macOS 13 Ventura+, Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+Binaries live in [GitHub Releases](https://github.com/charlesbeaumont/pip-timer/releases), zipped `Pip.app` bundles, ad-hoc signed. No in-app auto-update — to upgrade, download the new zip and replace `Pip.app` in `/Applications`.
+
+To cut a release locally:
 
 ```bash
-brew install xcodegen
-xcodegen generate
-open Pip.xcodeproj
+./scripts/release.sh 1.0.0
+gh release create v1.0.0 dist/Pip-v1.0.0.zip --title "Pip v1.0.0"
 ```
-
-Then ⌘R in Xcode. No Dock icon — look in the menu bar.
-
-## Signing for personal local use
-
-Defaults to ad-hoc signing so you can build without an Apple Developer account. If Gatekeeper objects to a copy in `/Applications`, either right-click → Open the first time, or sign with a personal Apple ID via Xcode → Signing & Capabilities → Automatically manage signing.
-
-## Launch at Login
-
-Uses `SMAppService.mainApp` (macOS 13+). For this to survive reboots reliably, move `Pip.app` to `/Applications` before toggling Launch at Login on. Confirm under System Settings → General → Login Items.
 
 ## Menu bar managers (Bartender, Barbee, Ice, etc.)
 
@@ -124,3 +141,11 @@ Sources/
 ```
 
 Total Swift: ~1000 lines.
+
+## Contributing
+
+Pip is a personal app shared as-is. Issues and pull requests are welcome, but there's no roadmap and no commitment to expand scope — see [CLAUDE.md](CLAUDE.md) for the explicit "out of scope" list. The constraints are the point.
+
+## License
+
+[MIT](LICENSE).
