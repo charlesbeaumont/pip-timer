@@ -15,29 +15,29 @@ enum ColorState {
 
 final class TimerController {
     private static let startTimeKey = "startTime"
-    private static let intervalKey = "intervalMinutes"
-    static let defaultIntervalMinutes = 30
-    static let intervalOptions = [15, 20, 25, 30, 45, 60]
+    private static let intervalKey = "intervalSeconds"
+    static let defaultIntervalSeconds = 1800
+    static let intervalOptions: [Int] = [10, 900, 1200, 1500, 1800, 2700, 3600]
 
     private(set) var startTime: Date {
         didSet { UserDefaults.standard.set(startTime, forKey: Self.startTimeKey) }
     }
 
-    var intervalMinutes: Int {
-        didSet { UserDefaults.standard.set(intervalMinutes, forKey: Self.intervalKey) }
+    var intervalSeconds: Int {
+        didSet { UserDefaults.standard.set(intervalSeconds, forKey: Self.intervalKey) }
     }
 
     init() {
         let defaults = UserDefaults.standard
         self.startTime = defaults.object(forKey: Self.startTimeKey) as? Date ?? Date()
         let stored = defaults.integer(forKey: Self.intervalKey)
-        self.intervalMinutes = stored > 0 ? stored : Self.defaultIntervalMinutes
+        self.intervalSeconds = stored > 0 ? stored : Self.defaultIntervalSeconds
     }
 
     var elapsed: TimeInterval { Date().timeIntervalSince(startTime) }
 
     var colorState: ColorState {
-        let t = TimeInterval(intervalMinutes * 60)
+        let t = TimeInterval(intervalSeconds)
         if elapsed < t { return .green }
         if elapsed < 2 * t { return .amber }
         return .red
@@ -54,5 +54,11 @@ final class TimerController {
             return String(format: "%d:%02d:%02d", h, m, s)
         }
         return String(format: "%02d:%02d", m, s)
+    }
+
+    static func intervalLabel(forSeconds s: Int) -> String {
+        if s < 60 { return "\(s) seconds" }
+        let m = s / 60
+        return "\(m) minutes"
     }
 }
