@@ -19,3 +19,6 @@ Package.resolved
 
 # macOS
 .DS_Store
+
+# Claude Code harness state
+.claude/
