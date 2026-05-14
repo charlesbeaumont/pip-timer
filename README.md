@@ -1,28 +1,31 @@
 # Rut Timer
 
-A tiny macOS menu-bar app that does two things:
+A macOS menu-bar app that does two things in one click target:
 
-1. **Ambient standup signal.** A colored dot (green → amber → red) counts up since your last reset, so you notice when it's been a while and should stand up.
+1. **Ambient standup signal.** A colored ring (green → amber → red) counts up since your last reset, so you notice when it's been a while and should stand up.
 2. **Simple time tracker** across four work modes — Maker, Manager, Reactive, Learning. Sessions written to your Second Brain as plain markdown.
 
-It never interrupts you. No notifications, no full-screen reminders. Just two ambient signals sharing one menu bar item.
+No notifications other than the idle prompt, no main window, no Dock icon. Lives entirely in the menu bar.
 
-## Behavior
+## Menu bar display
 
-**Menu bar display**
+A single composite glyph + elapsed time.
 
-Two visual styles, switchable in Configure → Display style:
-- **Ring + dot** (default) — single circle. Outer ring = standup state (green/amber/red), inner dot = active category color. When not tracking, just a solid dot.
-- **Two dots** — `[●][●] MM:SS` — first dot standup state, second dot category color. When not tracking, just one dot.
+- **Not tracking:** solid filled dot in the standup-state color + standup elapsed.
+- **Tracking:** thin colored ring (standup state) with a filled dot inside (category color) + active session elapsed.
 
-Time format: `MM:SS` (or `H:MM:SS` past an hour). When tracking, the time shown is the active session's elapsed; otherwise it's standup elapsed.
+The standup color stays as the outer ring at all times so it's always glanceable. The inner dot tells you what mode you're in.
 
-**Standup signal**
-- **Green** while elapsed < interval. **Amber** between 1× and 2× interval. **Red** past 2× interval.
-- Default interval 30 minutes. Configurable in the menu (15/20/25/30/45/60).
+## Standup
+
+- **Green** while elapsed < interval. **Amber** between 1× and 2× interval. **Red** past 2×.
+- Default interval 30 minutes. Configurable (10 sec for testing, then 15 / 20 / 25 / 30 / 45 / 60 min).
 - Resets automatically when the Mac wakes from sleep.
+- Resets automatically after a configurable "break threshold" of inactivity (default 10 min). The idea: if you've been away long enough to count as a real break, the clock should start fresh when you return.
 
-**Time tracking — four categories**
+## Time tracking
+
+Four fixed categories:
 
 | Category | Color  | What counts |
 |----------|--------|-------------|
@@ -31,40 +34,49 @@ Time format: `MM:SS` (or `H:MM:SS` past an hour). When tracking, the time shown 
 | Reactive | Pink   | Slack catch-up, email triage, ad-hoc threads, async reviews |
 | Learning | Teal   | Deliberate reading, watching, courses, exploratory research |
 
-Click the menu bar item to open the menu. Pick a category to start tracking; pick another to switch (previous session is finalized to markdown); pick "Stop Tracker" to pause. The app starts paused at launch. "Start Tracker (Last)" resumes whatever you tracked most recently.
+Click the menu bar item, pick a category to start. Pick another to switch (finalizes the previous session to markdown). Pick **Stop Tracker** to pause. App starts paused at launch. **Start Tracker (X)** at the top resumes whatever you tracked most recently.
 
-Sessions under 30 seconds are ignored — they're typically accidental category switches and shouldn't pollute the log.
+Sessions under 30 seconds are ignored to filter accidental category switches — except when finalized via the idle prompt, which always commits.
 
-**Storage**
-- Completed sessions are appended to `Daily/TimeTracking/YYYY-MM-DD.md` inside your Second Brain vault (default: iCloud Octarine path).
-- The file contains a `## Sessions` list and a `## Totals` block per category. The app rewrites totals after each session.
-- Today / This week / This month totals are shown in the menu, computed by re-reading the markdown files.
-- The output directory is configurable: Configure → Output directory… (opens a folder picker).
+## Storage
 
-**Idle detection**
+- Completed sessions append to `Daily/TimeTracking/YYYY-MM-DD.md` inside your Second Brain vault.
+- Default vault path: `~/Library/Mobile Documents/iCloud~com~octarine~notes/Documents/Second Brain` (iCloud Octarine).
+- Change via Configure → Output directory… (opens a folder picker).
+- Each file has `## Sessions` (one line per session) and `## Totals` (rewritten from sessions on each write).
+- Today / This week / This month totals appear in the menu, computed by reading the markdown back. The currently-active session is folded into the displayed totals in real time.
 
-If you walk away while a session is running, after a configurable threshold (default 5 min, options 3/5/10/15) the app sends a macOS notification with three actions:
-- **Stop at HH:MM** — finalize the session at the time activity actually stopped (`HH:MM` is shown).
-- **Continue tracking** — you were working (reading, on a call); session continues.
-- **Stop and resume now** — finalize at idle-start, restart the same category at the current time. Useful when you stepped away and now you're back.
+## Idle detection
 
-**Important macOS setup for idle notifications:**
-For the popup to stay visible until you click it, set System Settings → Notifications → Rut Timer → **Alerts** (not Banners). With the default Banners style, the notification slides away after a few seconds.
+Two independent inactivity thresholds:
 
-**Click**
-- Left or right click → opens the menu. Standup reset is a menu item ("Reset Timer").
+**Idle threshold** (default 5 min) — only while tracking. When you stop touching the keyboard/mouse for this long, a notification appears with three actions:
+- **Stop at HH:MM** — finalize the session at the time activity actually stopped.
+- **Continue tracking** — you were working (reading, on a call); session continues uninterrupted.
+- **Stop and resume now** — finalize at idle-start, start a fresh session of the same category at the current time.
 
-**Sleep / wake**
-- Wake: standup timer resets.
-- Sleep: if you're tracking, the session is finalized at sleep time (no ghost 12-hour sessions when you close the lid).
+**Break threshold** (default 10 min) — runs at all times. When inactivity passes this, the standup timer silently resets — you've effectively taken a break, so the count starts fresh.
 
-**Crash recovery**
-- A clean Quit finalizes the active session.
-- A hard kill (e.g., `kill -9`) leaks the session — on next launch, the app starts paused and the orphan is discarded (no guesswork retroactive writes).
+The two are separate by design: idle is for tracking accuracy ("was that 30 minutes really me working?"), break is for standup-count accuracy ("did I really sit for 30 minutes straight?"). Both fire from the same poll.
+
+### macOS notification setup
+
+For the idle prompt to stay visible until you click an action, set **System Settings → Notifications → Rut Timer → Alert style → Persistent** (Banners auto-dismiss after a few seconds; Persistent stays). Rut Timer also sets the notification's interruption level to `.timeSensitive` so Focus modes don't suppress it.
+
+## Click model
+
+Left or right click — both open the menu. There are no other primary actions: Reset Timer lives in the menu under Actions.
+
+## Sleep / wake / quit
+
+- **Wake** → standup timer resets.
+- **Sleep** → if you're tracking, the session is finalized at sleep time (no 12-hour ghost sessions when you close the lid).
+- **Quit** → finalizes the active session cleanly.
+- **Hard kill** (`kill -9`) → leaks the active session. On next launch the app discards any orphan and starts paused (no retroactive guessing).
 
 ## Build & run
 
-Requirements: macOS 13 Ventura or later, Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+Requirements: macOS 13 Ventura+, Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
 brew install xcodegen
@@ -72,41 +84,43 @@ xcodegen generate
 open RutTimer.xcodeproj
 ```
 
-Then hit ⌘R in Xcode. The app launches with no Dock icon — look in the menu bar.
+Then ⌘R in Xcode. No Dock icon — look in the menu bar.
 
 ## Signing for personal local use
 
-The project defaults to ad-hoc signing (`CODE_SIGN_IDENTITY = "-"`), which lets it run on your own machine without an Apple Developer account.
-
-If macOS Gatekeeper objects when you move the built `.app` to `/Applications`, either:
-
-1. Open it once via right-click → Open in Finder, then click Open in the dialog, or
-2. Sign with your free personal Apple ID: in Xcode select the `RutTimer` target → Signing & Capabilities → check "Automatically manage signing" → pick your team.
+Defaults to ad-hoc signing so you can build without an Apple Developer account. If Gatekeeper objects to a copy in `/Applications`, either right-click → Open the first time, or sign with a personal Apple ID via Xcode → Signing & Capabilities → Automatically manage signing.
 
 ## Launch at Login
 
-Uses `SMAppService.mainApp` (macOS 13+). For this to survive reboots reliably, move the built `Rut Timer.app` to `/Applications` before toggling Launch at Login on. You can verify the registration under System Settings → General → Login Items.
+Uses `SMAppService.mainApp` (macOS 13+). For this to survive reboots reliably, move `Rut Timer.app` to `/Applications` before toggling Launch at Login on. Confirm under System Settings → General → Login Items.
 
 ## Menu bar managers (Bartender, Barbee, Ice, etc.)
 
-Menu bar managers typically enumerate status items via the accessibility API at their own startup, so they only see items that were already running when they launched. If you use one and Rut Timer doesn't appear in its list:
+Menu bar managers enumerate status items at their own startup, so they only see items running when they launched. If you use one and Rut Timer doesn't appear in its list:
 
 1. Quit the menu bar manager.
 2. Make sure Rut Timer is running.
-3. Relaunch the menu bar manager.
+3. Relaunch the manager.
 
-The cleanest long-term setup is to enable Rut Timer's "Launch at Login" so it's always running before the manager starts.
+Long-term, enable Launch at Login on Rut Timer so it's always up before the manager starts.
 
 ## Files
 
-- `project.yml` — XcodeGen spec
-- `Sources/main.swift` — entry point
-- `Sources/AppDelegate.swift` — status item, menu, click routing, sleep/wake handlers, image rendering, idle notification handling
-- `Sources/TimerController.swift` — standup state (elapsed, persistence, color logic)
-- `Sources/Category.swift` — WorkCategory enum + per-category color
-- `Sources/TimeTracker.swift` — active session state, markdown writer, 30s minimum, configurable vault root, last-category memory
-- `Sources/TimeAggregator.swift` — read markdown back, sum per-category for day/week/month
-- `Sources/IdleWatcher.swift` — polls `CGEventSource.secondsSinceLastEventType` every 30s while tracking
-- `Sources/Info.plist` — `LSUIElement = true`, bundle metadata
+```
+project.yml                                 XcodeGen spec
+Sources/
+  main.swift                                entry point
+  AppDelegate.swift                         lifecycle, display update, menu actions
+  AppDelegate+Menu.swift                    menu construction (all the buildMenu plumbing)
+  AppDelegate+IdleNotifications.swift       UNUserNotificationCenter setup + delegate
+  StatusItemRenderer.swift                  ring/dot drawing + SF Symbol loader
+  TimerController.swift                     standup elapsed, color logic, interval
+  TimeTracker.swift                         active session, persistence, markdown writer
+  TimeAggregator.swift                      parse markdown, sum per category
+  IdleWatcher.swift                         polls HIDIdleTime, fires idle + break callbacks
+  Category.swift                            WorkCategory enum + color/icon per category
+  Defaults.swift                            UserDefaults key constants
+  Info.plist                                LSUIElement=true
+```
 
-Total Swift: ~870 lines.
+Total Swift: ~1000 lines.
