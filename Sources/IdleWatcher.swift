@@ -58,7 +58,7 @@ final class IdleWatcher {
 
     private func check() {
         guard let idleSeconds = Self.systemIdleTime() else {
-            NSLog("[RutTimer.idle] could not read HIDIdleTime")
+            NSLog("[Pip.idle] could not read HIDIdleTime")
             return
         }
         let idleThreshold = TimeInterval(thresholdSeconds)

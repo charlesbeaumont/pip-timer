@@ -145,7 +145,7 @@ extension AppDelegate {
         dirItem.image = StatusItemRenderer.symbol("folder")
         menu.addItem(dirItem)
 
-        let about = NSMenuItem(title: "About Rut Timer", action: #selector(menuAbout), keyEquivalent: "")
+        let about = NSMenuItem(title: "About Pip", action: #selector(menuAbout), keyEquivalent: "")
         about.target = self
         about.image = StatusItemRenderer.symbol("info.circle")
         menu.addItem(about)

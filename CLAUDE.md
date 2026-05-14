@@ -1,4 +1,4 @@
-# Rut Timer — agent notes
+# Pip — agent notes
 
 ## What this is
 
@@ -50,7 +50,7 @@ xcodegen generate
   ```bash
   xcrun -sdk macosx swiftc -typecheck Sources/*.swift
   ```
-- Full build: `xcodegen generate && xcodebuild -project RutTimer.xcodeproj -scheme RutTimer build`, or open in Xcode and ⌘R.
+- Full build: `xcodegen generate && xcodebuild -project Pip.xcodeproj -scheme Pip build`, or open in Xcode and ⌘R.
 - No tests. Behavior is verified by running the app and watching the menu bar + the markdown log file.
 
 ## Hard constraints
@@ -93,9 +93,9 @@ xcodegen generate
 - **Markdown format**: `## Sessions` (append-only) + `## Totals` (rewritten from sessions on every write). `TimeAggregator.parseSessions` is the parser; both `TimeTracker.rewriteTotals` and `TimeAggregator.totalsFor*` use it. If you change the line format, update the parser at the same time.
 - **Vault path**: `TimeTracker.vaultRoot` reads from UserDefaults `vaultRoot` key with the iCloud Octarine path as fallback. Configurable via Configure → Output directory… (`NSOpenPanel`). If iCloud isn't synced, writes silently no-op via `NSLog`.
 - **IdleWatcher**: uses IOKit `IOHIDSystem` → `HIDIdleTime` (nanoseconds). More reliable than `CGEventSource.secondsSinceLastEventType` on macOS Tahoe. Polls every 2s when idle threshold is sub-minute, otherwise 30s. Maintains two latches (`isIdle`, `isBreak`) for two independent thresholds.
-- **Idle prompt is a native UNNotification** with three action buttons. Set `.interruptionLevel = .timeSensitive` so Focus modes don't suppress it. The notification needs the user's System Settings → Notifications → Rut Timer → Alert style = **Persistent** to stay visible until clicked. Critical: do NOT auto-dismiss the notification when idle clears — the user moving the mouse to interact with it would race the dismiss and the notification vanishes before they click. This was a real bug, kept around as a comment in `applicationDidFinishLaunching`.
+- **Idle prompt is a native UNNotification** with three action buttons. Set `.interruptionLevel = .timeSensitive` so Focus modes don't suppress it. The notification needs the user's System Settings → Notifications → Pip → Alert style = **Persistent** to stay visible until clicked. Critical: do NOT auto-dismiss the notification when idle clears — the user moving the mouse to interact with it would race the dismiss and the notification vanishes before they click. This was a real bug, kept around as a comment in `applicationDidFinishLaunching`.
 - **Break threshold** is independent from idle threshold and runs at all times (not just during tracking). On crossing, silently resets standup. Used for "I was clearly away from my desk" detection.
-- **Menu bar manager compatibility**: status item sets `autosaveName = "RutTimerStatusItem"` (unique, not the generic Item-0 slot that macOS Tahoe's Control Center caches as hidden), `isVisible = true` explicitly, plus accessibility label, tooltip, and SF-Symbol description of "Rut Timer". **None of these are decorative** — drop them and the item gets parked off-screen at x≈-8578.
+- **Menu bar manager compatibility**: status item sets `autosaveName = "PipStatusItem"` (unique, not the generic Item-0 slot that macOS Tahoe's Control Center caches as hidden), `isVisible = true` explicitly, plus accessibility label, tooltip, and SF-Symbol description of "Pip". **None of these are decorative** — drop them and the item gets parked off-screen at x≈-8578.
 
 ## When making changes
 

@@ -1,4 +1,4 @@
-# Rut Timer
+# Pip
 
 A macOS menu-bar app that does two things in one click target:
 
@@ -61,7 +61,7 @@ The two are separate by design: idle is for tracking accuracy ("was that 30 minu
 
 ### macOS notification setup
 
-For the idle prompt to stay visible until you click an action, set **System Settings → Notifications → Rut Timer → Alert style → Persistent** (Banners auto-dismiss after a few seconds; Persistent stays). Rut Timer also sets the notification's interruption level to `.timeSensitive` so Focus modes don't suppress it.
+For the idle prompt to stay visible until you click an action, set **System Settings → Notifications → Pip → Alert style → Persistent** (Banners auto-dismiss after a few seconds; Persistent stays). Pip also sets the notification's interruption level to `.timeSensitive` so Focus modes don't suppress it.
 
 ## Click model
 
@@ -81,7 +81,7 @@ Requirements: macOS 13 Ventura+, Xcode 15+, [XcodeGen](https://github.com/yonask
 ```bash
 brew install xcodegen
 xcodegen generate
-open RutTimer.xcodeproj
+open Pip.xcodeproj
 ```
 
 Then ⌘R in Xcode. No Dock icon — look in the menu bar.
@@ -92,17 +92,17 @@ Defaults to ad-hoc signing so you can build without an Apple Developer account. 
 
 ## Launch at Login
 
-Uses `SMAppService.mainApp` (macOS 13+). For this to survive reboots reliably, move `Rut Timer.app` to `/Applications` before toggling Launch at Login on. Confirm under System Settings → General → Login Items.
+Uses `SMAppService.mainApp` (macOS 13+). For this to survive reboots reliably, move `Pip.app` to `/Applications` before toggling Launch at Login on. Confirm under System Settings → General → Login Items.
 
 ## Menu bar managers (Bartender, Barbee, Ice, etc.)
 
-Menu bar managers enumerate status items at their own startup, so they only see items running when they launched. If you use one and Rut Timer doesn't appear in its list:
+Menu bar managers enumerate status items at their own startup, so they only see items running when they launched. If you use one and Pip doesn't appear in its list:
 
 1. Quit the menu bar manager.
-2. Make sure Rut Timer is running.
+2. Make sure Pip is running.
 3. Relaunch the manager.
 
-Long-term, enable Launch at Login on Rut Timer so it's always up before the manager starts.
+Long-term, enable Launch at Login on Pip so it's always up before the manager starts.
 
 ## Files
 

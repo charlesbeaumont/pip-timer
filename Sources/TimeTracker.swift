@@ -97,12 +97,12 @@ final class TimeTracker {
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         if !FileManager.default.fileExists(atPath: fileURL.path) {
             guard writeHeader(at: fileURL, for: start) else {
-                NSLog("[RutTimer] Could not write tracking file at \(fileURL.path)")
+                NSLog("[Pip] Could not write tracking file at \(fileURL.path)")
                 return
             }
         }
         guard var contents = try? String(contentsOf: fileURL, encoding: .utf8) else {
-            NSLog("[RutTimer] Could not read tracking file at \(fileURL.path)")
+            NSLog("[Pip] Could not read tracking file at \(fileURL.path)")
             return
         }
         let line = formatSession(category: category, start: start, end: end)

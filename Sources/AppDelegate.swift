@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.autosaveName = "RutTimerStatusItem"
+        statusItem.autosaveName = "PipStatusItem"
         statusItem.isVisible = true
         if let button = statusItem.button {
             button.target = self
@@ -75,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         button.image = StatusItemRenderer.ringOutlineImage(standup: standupColor, category: categoryColor)
         button.imagePosition = .imageLeading
         button.imageHugsTitle = true
-        button.setAccessibilityLabel("Rut Timer")
+        button.setAccessibilityLabel("Pip")
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         if let active = tracker.active {
             let elapsed = Date().timeIntervalSince(active.startTime)
@@ -83,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             button.toolTip = "Tracking \(active.category.displayName)"
         } else {
             button.title = " " + TimerController.formatElapsed(standup.elapsed)
-            button.toolTip = "Rut Timer — open menu to track or reset"
+            button.toolTip = "Pip — open menu to track or reset"
         }
     }
 
@@ -169,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     @objc func menuAbout() {
         let info = Bundle.main.infoDictionary ?? [:]
-        let name = info["CFBundleName"] as? String ?? "Rut Timer"
+        let name = info["CFBundleName"] as? String ?? "Pip"
         let version = info["CFBundleShortVersionString"] as? String ?? "1.0"
         let alert = NSAlert()
         alert.messageText = name

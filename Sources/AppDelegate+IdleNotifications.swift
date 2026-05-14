@@ -2,7 +2,7 @@ import AppKit
 import UserNotifications
 
 extension AppDelegate {
-    static let idleCategoryId = "RUT_IDLE"
+    static let idleCategoryId = "PIP_IDLE"
     static let actionStopAtIdle = "STOP_AT_IDLE"
     static let actionContinue = "CONTINUE"
     static let actionStopAndResume = "STOP_AND_RESUME"
@@ -11,8 +11,8 @@ extension AppDelegate {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error = error { NSLog("[RutTimer] notification authorization error: \(error)") }
-            if !granted { NSLog("[RutTimer] notifications not granted — idle prompts will not appear until enabled in System Settings") }
+            if let error = error { NSLog("[Pip] notification authorization error: \(error)") }
+            if !granted { NSLog("[Pip] notifications not granted — idle prompts will not appear until enabled in System Settings") }
         }
         let stopAtIdle = UNNotificationAction(identifier: Self.actionStopAtIdle, title: "Stop at inactivity time", options: [])
         let cont = UNNotificationAction(identifier: Self.actionContinue, title: "Continue tracking", options: [])
@@ -37,7 +37,7 @@ extension AppDelegate {
         idleNotificationVisible = true
         UNUserNotificationCenter.current().add(request) { [weak self] error in
             if let error = error {
-                NSLog("[RutTimer] notification add error: \(error)")
+                NSLog("[Pip] notification add error: \(error)")
                 DispatchQueue.main.async { self?.idleNotificationVisible = false }
             }
         }

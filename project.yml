@@ -1,4 +1,4 @@
-name: RutTimer
+name: Pip
 options:
   bundleIdPrefix: io.theydo.charles
   deploymentTarget:
@@ -14,7 +14,7 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     DEVELOPMENT_TEAM: ""
 targets:
-  RutTimer:
+  Pip:
     type: application
     platform: macOS
     deploymentTarget: "13.0"
@@ -24,8 +24,8 @@ targets:
           - "Info.plist"
     settings:
       base:
-        PRODUCT_NAME: "Rut Timer"
-        PRODUCT_BUNDLE_IDENTIFIER: io.theydo.charles.RutTimer
+        PRODUCT_NAME: "Pip"
+        PRODUCT_BUNDLE_IDENTIFIER: io.theydo.charles.Pip
         INFOPLIST_FILE: Sources/Info.plist
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
