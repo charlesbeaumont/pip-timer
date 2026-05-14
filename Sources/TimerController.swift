@@ -14,23 +14,21 @@ enum ColorState {
 }
 
 final class TimerController {
-    private static let startTimeKey = "startTime"
-    private static let intervalKey = "intervalSeconds"
     static let defaultIntervalSeconds = 1800
     static let intervalOptions: [Int] = [10, 900, 1200, 1500, 1800, 2700, 3600]
 
     private(set) var startTime: Date {
-        didSet { UserDefaults.standard.set(startTime, forKey: Self.startTimeKey) }
+        didSet { UserDefaults.standard.set(startTime, forKey: Defaults.startTime) }
     }
 
     var intervalSeconds: Int {
-        didSet { UserDefaults.standard.set(intervalSeconds, forKey: Self.intervalKey) }
+        didSet { UserDefaults.standard.set(intervalSeconds, forKey: Defaults.intervalSeconds) }
     }
 
     init() {
         let defaults = UserDefaults.standard
-        self.startTime = defaults.object(forKey: Self.startTimeKey) as? Date ?? Date()
-        let stored = defaults.integer(forKey: Self.intervalKey)
+        self.startTime = defaults.object(forKey: Defaults.startTime) as? Date ?? Date()
+        let stored = defaults.integer(forKey: Defaults.intervalSeconds)
         self.intervalSeconds = stored > 0 ? stored : Self.defaultIntervalSeconds
     }
 

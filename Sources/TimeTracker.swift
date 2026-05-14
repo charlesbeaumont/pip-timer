@@ -5,10 +5,6 @@ final class TimeTracker {
     static let tracksDir = "Daily/TimeTracking"
     static let minimumSessionSeconds: TimeInterval = 30
 
-    private static let activeKey = "activeSession"
-    private static let lastCategoryKey = "lastCategory"
-    private static let vaultRootKey = "vaultRoot"
-
     private struct ActiveSession: Codable {
         let category: WorkCategory
         let startTime: Date
@@ -17,7 +13,7 @@ final class TimeTracker {
     private(set) var active: (category: WorkCategory, startTime: Date)?
 
     init() {
-        UserDefaults.standard.removeObject(forKey: Self.activeKey)
+        UserDefaults.standard.removeObject(forKey: Defaults.activeSession)
     }
 
     var isTracking: Bool { active != nil }
@@ -27,16 +23,16 @@ final class TimeTracker {
     }
 
     var lastCategory: WorkCategory? {
-        guard let raw = UserDefaults.standard.string(forKey: Self.lastCategoryKey) else { return nil }
+        guard let raw = UserDefaults.standard.string(forKey: Defaults.lastCategory) else { return nil }
         return WorkCategory(rawValue: raw)
     }
 
     static var vaultRoot: String {
-        UserDefaults.standard.string(forKey: vaultRootKey) ?? defaultVaultRoot
+        UserDefaults.standard.string(forKey: Defaults.vaultRoot) ?? defaultVaultRoot
     }
 
     static func setVaultRoot(_ path: String) {
-        UserDefaults.standard.set(path, forKey: vaultRootKey)
+        UserDefaults.standard.set(path, forKey: Defaults.vaultRoot)
     }
 
     func start(_ category: WorkCategory) {
@@ -47,7 +43,7 @@ final class TimeTracker {
         let session = ActiveSession(category: category, startTime: Date())
         active = (category, session.startTime)
         persistActive(session)
-        UserDefaults.standard.set(category.rawValue, forKey: Self.lastCategoryKey)
+        UserDefaults.standard.set(category.rawValue, forKey: Defaults.lastCategory)
     }
 
     func startLastCategory() {
@@ -61,7 +57,7 @@ final class TimeTracker {
         guard let current = active else { return }
         finalize(current, endTime: endTime, force: force)
         active = nil
-        UserDefaults.standard.removeObject(forKey: Self.activeKey)
+        UserDefaults.standard.removeObject(forKey: Defaults.activeSession)
     }
 
     func stopAndResume(at idleStartTime: Date) {
@@ -75,7 +71,7 @@ final class TimeTracker {
 
     private func persistActive(_ session: ActiveSession) {
         if let data = try? JSONEncoder().encode(session) {
-            UserDefaults.standard.set(data, forKey: Self.activeKey)
+            UserDefaults.standard.set(data, forKey: Defaults.activeSession)
         }
     }
 

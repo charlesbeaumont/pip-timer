@@ -2,8 +2,6 @@ import Foundation
 import IOKit
 
 final class IdleWatcher {
-    static let idleKey = "idleThresholdSeconds"
-    static let breakKey = "breakThresholdSeconds"
     static let idleOptions: [Int] = [10, 180, 300, 600, 900]
     static let breakOptions: [Int] = [300, 600, 900, 1200, 1800]
     static let defaultIdleSeconds = 300
@@ -18,21 +16,21 @@ final class IdleWatcher {
     private var isBreak = false
 
     var thresholdSeconds: Int {
-        let stored = UserDefaults.standard.integer(forKey: Self.idleKey)
+        let stored = UserDefaults.standard.integer(forKey: Defaults.idleThresholdSeconds)
         return stored > 0 ? stored : Self.defaultIdleSeconds
     }
 
     var breakThresholdSeconds: Int {
-        let stored = UserDefaults.standard.integer(forKey: Self.breakKey)
+        let stored = UserDefaults.standard.integer(forKey: Defaults.breakThresholdSeconds)
         return stored > 0 ? stored : Self.defaultBreakSeconds
     }
 
     func setThreshold(_ seconds: Int) {
-        UserDefaults.standard.set(seconds, forKey: Self.idleKey)
+        UserDefaults.standard.set(seconds, forKey: Defaults.idleThresholdSeconds)
     }
 
     func setBreakThreshold(_ seconds: Int) {
-        UserDefaults.standard.set(seconds, forKey: Self.breakKey)
+        UserDefaults.standard.set(seconds, forKey: Defaults.breakThresholdSeconds)
     }
 
     static func thresholdLabel(forSeconds s: Int) -> String {
