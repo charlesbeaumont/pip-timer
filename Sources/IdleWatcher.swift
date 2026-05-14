@@ -43,7 +43,6 @@ final class IdleWatcher {
     func start() {
         guard poll == nil else { return }
         let interval: TimeInterval = thresholdSeconds < 60 ? 2 : 30
-        NSLog("[RutTimer.idle] start poll every %.0fs (idle=%ds break=%ds)", interval, thresholdSeconds, breakThresholdSeconds)
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.check() }
         RunLoop.main.add(timer, forMode: .common)
         poll = timer

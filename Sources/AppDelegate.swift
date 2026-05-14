@@ -69,7 +69,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     private func handleBreakDetected(idleSeconds: TimeInterval) {
-        NSLog("[RutTimer] break detected (idle=%.1fs) — resetting standup timer", idleSeconds)
         standup.reset()
         updateDisplay()
     }
@@ -461,14 +460,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     private func presentIdleNotification(idleSeconds: TimeInterval) {
-        guard let active = tracker.active else {
-            NSLog("[RutTimer] presentIdleNotification: not tracking, skipping")
-            return
-        }
-        if idleNotificationVisible {
-            NSLog("[RutTimer] notification already visible, not adding another")
-            return
-        }
+        guard let active = tracker.active else { return }
+        if idleNotificationVisible { return }
         let idleStart = Date().addingTimeInterval(-idleSeconds)
         idleAtTime = idleStart
         let content = UNMutableNotificationContent()
@@ -480,13 +473,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         content.interruptionLevel = .timeSensitive
         let request = UNNotificationRequest(identifier: idleCategoryId, content: content, trigger: nil)
         idleNotificationVisible = true
-        NSLog("[RutTimer] adding notification request idleSec=%.1f", idleSeconds)
         UNUserNotificationCenter.current().add(request) { [weak self] error in
             if let error = error {
                 NSLog("[RutTimer] notification add error: \(error)")
                 DispatchQueue.main.async { self?.idleNotificationVisible = false }
-            } else {
-                NSLog("[RutTimer] notification added OK")
             }
         }
     }
@@ -503,7 +493,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let idleStart = idleAtTime ?? Date()
-        NSLog("[RutTimer] notification action: \(response.actionIdentifier)")
         switch response.actionIdentifier {
         case actionStopAtIdle:
             tracker.stop(at: idleStart, force: true)
