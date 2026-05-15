@@ -5,7 +5,7 @@
 Single-user macOS menu-bar app, two features sharing one menu bar item:
 
 1. **Standup signal** — colored ring (green → amber → red) + elapsed time since last reset. Ambient nudge to stand up. Also auto-resets after a long inactivity stretch ("break threshold", default 10 min).
-2. **Time tracker** — four fixed categories (Maker / Manager / Reactive / Learning). Click the menu bar item, pick a category, it starts tracking. Pick another to switch. Pick "Stop Tracker" to pause. Sessions are written as plain markdown to `Daily/TimeTracking/YYYY-MM-DD.md` inside Charles's Second Brain (iCloud Octarine vault by default; configurable via menu).
+2. **Time tracker** — four fixed categories (Maker / Manager / Reactive / Learning). Click the menu bar item, pick a category, it starts tracking. Pick another to switch. Pick "Stop Tracker" to pause. Sessions are written as plain markdown — one `YYYY-MM-DD.md` file per day, directly inside whatever folder the user picks via Configure → Output directory…. No default path; until the user picks a folder, tracking still works in-memory but nothing is written to disk.
 
 The point is **ambient**: it never interrupts unless idle while tracking. Don't add features that interrupt: no break reminders, no Pomodoro modes, no popups other than the idle prompt.
 
@@ -30,7 +30,7 @@ Sources/
   StatusItemRenderer.swift                  ring/dot drawing (pure functions) + SF Symbol helper
   TimerController.swift                     standup state (elapsed, persistence, color)
   TimeTracker.swift                         active session, sleep/quit finalization, markdown writer
-  TimeAggregator.swift                      parse Daily/TimeTracking/*.md, sum per category
+  TimeAggregator.swift                      parse <vault>/*.md, sum per category
   IdleWatcher.swift                         polls IOHIDIdleTime, fires onIdleCrossed + onBreakCrossed
   Category.swift                            WorkCategory enum + color + SF Symbol name per category
   Defaults.swift                            UserDefaults key constants (all of them)
@@ -91,7 +91,7 @@ xcodegen generate
 - **30-second minimum session**: `TimeTracker.finalize` drops sessions shorter than `minimumSessionSeconds = 30` — unless `force: true` is passed, which the idle popup paths use because those are deliberate user-confirmed actions. Don't make the minimum configurable.
 - **Midnight rollover**: `TimeTracker.finalize` recursively splits a session that crosses midnight, writing the start portion to today's file and the rest to tomorrow's. Rare but correct.
 - **Markdown format**: `## Sessions` (append-only) + `## Totals` (rewritten from sessions on every write). `TimeAggregator.parseSessions` is the parser; both `TimeTracker.rewriteTotals` and `TimeAggregator.totalsFor*` use it. If you change the line format, update the parser at the same time.
-- **Vault path**: `TimeTracker.vaultRoot` reads from UserDefaults `vaultRoot` key with the iCloud Octarine path as fallback. Configurable via Configure → Output directory… (`NSOpenPanel`). If iCloud isn't synced, writes silently no-op via `NSLog`.
+- **Vault path**: `TimeTracker.vaultRoot` returns `Optional<String>` — reads from UserDefaults `vaultRoot` key, returns `nil` when unset. No default path baked in (deliberately, since this is OSS now and a hardcoded iCloud Octarine path would refer to one person's setup). Configurable via Configure → Output directory… (`NSOpenPanel`). When `nil`, `appendSession` early-returns with an `NSLog`; totals come back as zero; "Open today's tracking log" shows an alert pointing the user at Configure. Files are written **directly** into the chosen folder as `YYYY-MM-DD.md` — no `Daily/TimeTracking/` subdirectory is created (early versions did, which produced double-nested paths when users pointed Output directory at their own `…/Time Tracking/` folder).
 - **IdleWatcher**: uses IOKit `IOHIDSystem` → `HIDIdleTime` (nanoseconds). More reliable than `CGEventSource.secondsSinceLastEventType` on macOS Tahoe. Polls every 2s when idle threshold is sub-minute, otherwise 5s — anything coarser (30s was the original value) can miss the break-threshold boundary entirely, because the latch only fires when a poll observes `idleSeconds >= threshold`; the user could return between polls and the event is lost. Maintains two latches (`isIdle`, `isBreak`) for two independent thresholds.
 - **Idle prompt is a native UNNotification** with three action buttons. Set `.interruptionLevel = .timeSensitive` so Focus modes don't suppress it. The notification needs the user's System Settings → Notifications → Pip → Alert style = **Persistent** to stay visible until clicked. Critical: do NOT auto-dismiss the notification when idle clears — the user moving the mouse to interact with it would race the dismiss and the notification vanishes before they click. This was a real bug, kept around as a comment in `applicationDidFinishLaunching`.
 - **Break threshold** is independent from idle threshold and runs at all times (not just during tracking). On crossing, silently resets standup. Used for "I was clearly away from my desk" detection.

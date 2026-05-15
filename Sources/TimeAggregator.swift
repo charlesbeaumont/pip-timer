@@ -62,7 +62,7 @@ struct TimeAggregator {
     private static func totals(for dates: [Date]) -> [WorkCategory: TimeInterval] {
         var totals: [WorkCategory: TimeInterval] = [:]
         for date in dates {
-            let url = fileURL(for: date)
+            guard let url = fileURL(for: date) else { continue }
             guard let contents = try? String(contentsOf: url, encoding: .utf8) else { continue }
             for s in parseSessions(from: contents) {
                 totals[s.category, default: 0] += s.duration
@@ -71,8 +71,8 @@ struct TimeAggregator {
         return totals
     }
 
-    private static func fileURL(for date: Date) -> URL {
-        let path = (TimeTracker.vaultRoot as NSString).appendingPathComponent(TimeTracker.tracksDir)
-        return URL(fileURLWithPath: path).appendingPathComponent("\(TimeTracker.dayString(date)).md")
+    private static func fileURL(for date: Date) -> URL? {
+        guard let root = TimeTracker.vaultRoot else { return nil }
+        return URL(fileURLWithPath: root).appendingPathComponent("\(TimeTracker.dayString(date)).md")
     }
 }

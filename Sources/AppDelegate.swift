@@ -132,7 +132,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     @objc func menuOpenLog() {
-        let url = tracker.fileURL(for: Date())
+        guard let url = tracker.fileURL(for: Date()) else {
+            let alert = NSAlert()
+            alert.messageText = "No output directory configured"
+            alert.informativeText = "Choose one via Configure → Output directory…"
+            alert.runModal()
+            return
+        }
         if !FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let header = "# Time Tracking — \(TimeTracker.dayString(Date()))\n\n## Sessions\n\n## Totals\n\n"
@@ -146,8 +152,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.directoryURL = URL(fileURLWithPath: TimeTracker.vaultRoot)
-        panel.message = "Choose the folder where time tracking files will be saved. The app will write to Daily/TimeTracking/ inside it."
+        if let root = TimeTracker.vaultRoot {
+            panel.directoryURL = URL(fileURLWithPath: root)
+        }
+        panel.message = "Choose the folder where time tracking files will be saved. Files are written directly into this folder, one per day."
         if panel.runModal() == .OK, let url = panel.url {
             TimeTracker.setVaultRoot(url.path)
         }

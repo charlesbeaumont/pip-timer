@@ -1,8 +1,6 @@
 import Foundation
 
 final class TimeTracker {
-    static let defaultVaultRoot = ("~/Library/Mobile Documents/iCloud~com~octarine~notes/Documents/Second Brain" as NSString).expandingTildeInPath
-    static let tracksDir = "Daily/TimeTracking"
     static let minimumSessionSeconds: TimeInterval = 30
 
     private struct ActiveSession: Codable {
@@ -27,8 +25,8 @@ final class TimeTracker {
         return WorkCategory(rawValue: raw)
     }
 
-    static var vaultRoot: String {
-        UserDefaults.standard.string(forKey: Defaults.vaultRoot) ?? defaultVaultRoot
+    static var vaultRoot: String? {
+        UserDefaults.standard.string(forKey: Defaults.vaultRoot)
     }
 
     static func setVaultRoot(_ path: String) {
@@ -93,7 +91,10 @@ final class TimeTracker {
     }
 
     private func appendSession(category: WorkCategory, start: Date, end: Date) {
-        let fileURL = fileURL(for: start)
+        guard let fileURL = fileURL(for: start) else {
+            NSLog("[Pip] Output directory not configured; session not saved")
+            return
+        }
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         if !FileManager.default.fileExists(atPath: fileURL.path) {
             guard writeHeader(at: fileURL, for: start) else {
@@ -163,9 +164,9 @@ final class TimeTracker {
         return result + block
     }
 
-    func fileURL(for date: Date) -> URL {
-        let path = (Self.vaultRoot as NSString).appendingPathComponent(Self.tracksDir)
-        return URL(fileURLWithPath: path).appendingPathComponent("\(Self.dayString(date)).md")
+    func fileURL(for date: Date) -> URL? {
+        guard let root = Self.vaultRoot else { return nil }
+        return URL(fileURLWithPath: root).appendingPathComponent("\(Self.dayString(date)).md")
     }
 
     private static let dayFormatter: DateFormatter = {

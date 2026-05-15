@@ -66,9 +66,9 @@ Sessions under 30 seconds are ignored to filter accidental category switches —
 
 ## Storage
 
-- Completed sessions append to `Daily/TimeTracking/YYYY-MM-DD.md` inside your Second Brain vault.
-- Default vault path: `~/Library/Mobile Documents/iCloud~com~octarine~notes/Documents/Second Brain` (iCloud Octarine).
-- Change via Configure → Output directory… (opens a folder picker).
+- Pip starts with **no output directory configured** — tracking still works in-memory, but nothing is written to disk until you pick a folder.
+- Set the folder via **Configure → Output directory…** (opens a folder picker).
+- Completed sessions then append to `YYYY-MM-DD.md` **directly inside** the folder you chose — no subdirectories created.
 - Each file has `## Sessions` (one line per session) and `## Totals` (rewritten from sessions on each write).
 - Today / This week / This month totals appear in the menu, computed by reading the markdown back. The currently-active session is folded into the displayed totals in real time.
 
