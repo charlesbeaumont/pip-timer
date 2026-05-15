@@ -13,6 +13,7 @@ cd "$(dirname "$0")/.."
 
 APP="build/Build/Products/Debug/Pip.app"
 LOG="/tmp/pip-dev-build.log"
+RUNTIME_LOG="/tmp/pip-runtime.log"
 
 rebuild() {
   printf '[%s] building...\n' "$(date +%H:%M:%S)"
@@ -24,8 +25,10 @@ rebuild() {
       -derivedDataPath build \
       build >"$LOG" 2>&1; then
     pkill -f "$APP/Contents/MacOS/Pip" 2>/dev/null || true
-    open "$APP"
-    printf '[%s] relaunched\n' "$(date +%H:%M:%S)"
+    sleep 0.2
+    nohup "$APP/Contents/MacOS/Pip" >>"$RUNTIME_LOG" 2>&1 &
+    disown
+    printf '[%s] relaunched (runtime log: %s)\n' "$(date +%H:%M:%S)" "$RUNTIME_LOG"
   else
     printf '[%s] build failed:\n' "$(date +%H:%M:%S)"
     grep -E "error:|warning:" "$LOG" | head -20
