@@ -22,6 +22,7 @@ targets:
       - path: Sources
         excludes:
           - "Info.plist"
+      - path: Resources
     settings:
       base:
         PRODUCT_NAME: "Pip"
