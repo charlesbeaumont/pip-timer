@@ -1,8 +1,14 @@
-# Pip
+<p align="center">
+  <img src="docs/icon.png" alt="Pip" width="160" />
+</p>
 
-[![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)](#install)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/charlesbeaumont/pip-timer?include_prereleases&sort=semver)](https://github.com/charlesbeaumont/pip-timer/releases)
+<h1 align="center">Pip</h1>
+
+<p align="center">
+  <a href="#install"><img src="https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey" alt="Platform" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License" /></a>
+  <a href="https://github.com/charlesbeaumont/pip-timer/releases"><img src="https://img.shields.io/github/v/release/charlesbeaumont/pip-timer?include_prereleases&sort=semver" alt="Release" /></a>
+</p>
 
 A macOS menu-bar app that does two things in one click target:
 
