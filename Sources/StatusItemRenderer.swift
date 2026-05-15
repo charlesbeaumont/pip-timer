@@ -6,13 +6,16 @@ enum StatusItemRenderer {
         let stroke: CGFloat = 2
         let gap: CGFloat = 1.5
         let inner: CGFloat = outer - 2 * stroke - 2 * gap
+        let soloDot: CGFloat = 9
         let h: CGFloat = 18
         let image = NSImage(size: NSSize(width: outer, height: h))
         image.lockFocus()
         let y = (h - outer) / 2
         if category == nil {
+            let dx = (outer - soloDot) / 2
+            let dy = y + (outer - soloDot) / 2
             standup.setFill()
-            NSBezierPath(ovalIn: NSRect(x: 0, y: y, width: outer, height: outer)).fill()
+            NSBezierPath(ovalIn: NSRect(x: dx, y: dy, width: soloDot, height: soloDot)).fill()
         } else {
             let strokeRect = NSRect(x: stroke / 2, y: y + stroke / 2, width: outer - stroke, height: outer - stroke)
             let ring = NSBezierPath(ovalIn: strokeRect)
