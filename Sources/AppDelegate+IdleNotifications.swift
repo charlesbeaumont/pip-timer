@@ -14,6 +14,9 @@ extension AppDelegate {
             if let error = error { NSLog("[Pip] notification authorization error: \(error)") }
             if !granted { NSLog("[Pip] notifications not granted — idle prompts will not appear until enabled in System Settings") }
         }
+        center.getNotificationSettings { settings in
+            NSLog("[Pip] notification auth status at launch: \(Self.authStatusName(settings.authorizationStatus))")
+        }
         let stopAtIdle = UNNotificationAction(identifier: Self.actionStopAtIdle, title: "Stop at inactivity time", options: [])
         let cont = UNNotificationAction(identifier: Self.actionContinue, title: "Continue tracking", options: [])
         let stopAndResume = UNNotificationAction(identifier: Self.actionStopAndResume, title: "Stop and resume now", options: [])
@@ -21,11 +24,21 @@ extension AppDelegate {
         center.setNotificationCategories([category])
     }
 
+    private static func authStatusName(_ status: UNAuthorizationStatus) -> String {
+        switch status {
+        case .notDetermined: return "notDetermined"
+        case .denied: return "denied"
+        case .authorized: return "authorized"
+        case .provisional: return "provisional"
+        case .ephemeral: return "ephemeral"
+        @unknown default: return "unknown(\(status.rawValue))"
+        }
+    }
+
     func presentIdleNotification(idleSeconds: TimeInterval) {
         guard let active = tracker.active else { return }
         if idleNotificationVisible { return }
         let idleStart = Date().addingTimeInterval(-idleSeconds)
-        idleAtTime = idleStart
         let content = UNMutableNotificationContent()
         let minutes = Int(idleSeconds / 60)
         let units = minutes > 0 ? "\(minutes) min" : "\(Int(idleSeconds)) sec"
@@ -34,11 +47,35 @@ extension AppDelegate {
         content.categoryIdentifier = Self.idleCategoryId
         content.interruptionLevel = .timeSensitive
         let request = UNNotificationRequest(identifier: Self.idleCategoryId, content: content, trigger: nil)
-        idleNotificationVisible = true
-        UNUserNotificationCenter.current().add(request) { [weak self] error in
-            if let error = error {
-                NSLog("[Pip] notification add error: \(error)")
-                DispatchQueue.main.async { self?.idleNotificationVisible = false }
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { [weak self] settings in
+            guard let self = self else { return }
+            let status = settings.authorizationStatus
+            if status == .notDetermined {
+                NSLog("[Pip] auth status is notDetermined — requesting now")
+                center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, error in
+                    if let error = error { NSLog("[Pip] auth request error: \(error)") }
+                    if granted {
+                        DispatchQueue.main.async { self?.presentIdleNotification(idleSeconds: idleSeconds) }
+                    } else {
+                        NSLog("[Pip] auth denied or dismissed by user — idle prompt skipped")
+                    }
+                }
+                return
+            }
+            guard status == .authorized || status == .provisional else {
+                NSLog("[Pip] idle prompt skipped — auth status is \(Self.authStatusName(status)). Enable in System Settings → Notifications → Pip.")
+                return
+            }
+            DispatchQueue.main.async {
+                self.idleAtTime = idleStart
+                self.idleNotificationVisible = true
+                center.add(request) { error in
+                    if let error = error {
+                        NSLog("[Pip] notification add error: \(error)")
+                        DispatchQueue.main.async { self.idleNotificationVisible = false }
+                    }
+                }
             }
         }
     }
