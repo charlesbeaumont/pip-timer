@@ -33,6 +33,8 @@ open Pip.xcodeproj
 
 Then ⌘R in Xcode. No Dock icon — look in the menu bar.
 
+For tight iteration without Xcode, `./scripts/dev.sh` watches `Sources/` and `project.yml` and rebuilds + relaunches Pip on every save (needs `brew install fswatch`).
+
 ## Menu bar display
 
 A single composite glyph + elapsed time.
