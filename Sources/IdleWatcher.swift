@@ -40,7 +40,7 @@ final class IdleWatcher {
 
     func start() {
         guard poll == nil else { return }
-        let interval: TimeInterval = thresholdSeconds < 60 ? 2 : 30
+        let interval: TimeInterval = thresholdSeconds < 60 ? 2 : 5
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.check() }
         RunLoop.main.add(timer, forMode: .common)
         poll = timer
