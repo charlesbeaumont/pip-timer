@@ -3,7 +3,11 @@ import AppKit
 final class AddEntryWindow: NSWindowController {
     var onAdd: ((WorkCategory, Date, Date) -> Void)?
 
-    private let datePicker = NSDatePicker()
+    private let dateButton = NSButton()
+    private let datePopover = NSPopover()
+    private let calendarPicker = NSDatePicker()
+    private var selectedDate = Date()
+
     private let categorySegmented: NSSegmentedControl
     private let endTimePicker = NSDatePicker()
     private let durationStepper = NSStepper()
@@ -19,7 +23,7 @@ final class AddEntryWindow: NSWindowController {
             action: nil
         )
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 200),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 300),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -34,7 +38,9 @@ final class AddEntryWindow: NSWindowController {
 
     func presentWithDefaults(lastCategory: WorkCategory?) {
         let now = Date()
-        datePicker.dateValue = now
+        selectedDate = now
+        updateDateButtonLabel()
+        calendarPicker.dateValue = now
         endTimePicker.dateValue = now
         durationStepper.integerValue = 60
         durationField.integerValue = 60
@@ -48,18 +54,49 @@ final class AddEntryWindow: NSWindowController {
     }
 
     private func setupUI() {
-        datePicker.datePickerStyle = .textFieldAndStepper
-        datePicker.datePickerElements = [.yearMonthDay]
-        datePicker.dateValue = Date()
+        // Date button — opens a popover with the calendar picker.
+        dateButton.bezelStyle = .rounded
+        dateButton.title = ""
+        dateButton.alignment = .left
+        dateButton.target = self
+        dateButton.action = #selector(showDatePopover)
+        dateButton.translatesAutoresizingMaskIntoConstraints = false
+        dateButton.widthAnchor.constraint(equalToConstant: 220).isActive = true
 
+        // Calendar picker (lives inside the popover).
+        calendarPicker.datePickerStyle = .clockAndCalendar
+        calendarPicker.datePickerElements = [.yearMonthDay]
+        calendarPicker.dateValue = Date()
+        calendarPicker.target = self
+        calendarPicker.action = #selector(calendarPickerChanged)
+
+        let popoverContainer = NSView()
+        popoverContainer.addSubview(calendarPicker)
+        calendarPicker.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            calendarPicker.topAnchor.constraint(equalTo: popoverContainer.topAnchor, constant: 12),
+            calendarPicker.leadingAnchor.constraint(equalTo: popoverContainer.leadingAnchor, constant: 12),
+            calendarPicker.trailingAnchor.constraint(equalTo: popoverContainer.trailingAnchor, constant: -12),
+            calendarPicker.bottomAnchor.constraint(equalTo: popoverContainer.bottomAnchor, constant: -12),
+        ])
+        let popoverVC = NSViewController()
+        popoverVC.view = popoverContainer
+        datePopover.contentViewController = popoverVC
+        datePopover.behavior = .transient
+
+        // Category.
         categorySegmented.segmentStyle = .rounded
+        categorySegmented.translatesAutoresizingMaskIntoConstraints = false
+        categorySegmented.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
+        // End time.
         endTimePicker.datePickerStyle = .textFieldAndStepper
         endTimePicker.datePickerElements = [.hourMinute]
         endTimePicker.dateValue = Date()
         endTimePicker.target = self
         endTimePicker.action = #selector(controlChanged)
 
+        // Duration: stepper + field + "minutes".
         durationStepper.minValue = 5
         durationStepper.maxValue = 720
         durationStepper.increment = 5
@@ -79,6 +116,14 @@ final class AddEntryWindow: NSWindowController {
         durationField.translatesAutoresizingMaskIntoConstraints = false
         durationField.widthAnchor.constraint(equalToConstant: 56).isActive = true
 
+        let minutesLabel = NSTextField(labelWithString: "minutes")
+        minutesLabel.textColor = .secondaryLabelColor
+        let durationRow = NSStackView(views: [durationField, durationStepper, minutesLabel])
+        durationRow.orientation = .horizontal
+        durationRow.alignment = .centerY
+        durationRow.spacing = 6
+
+        // Buttons.
         addButton.title = "Add entry"
         addButton.bezelStyle = .rounded
         addButton.keyEquivalent = "\r"
@@ -91,33 +136,32 @@ final class AddEntryWindow: NSWindowController {
         cancelButton.target = self
         cancelButton.action = #selector(cancelTapped)
 
-        let minLabel = NSTextField(labelWithString: "min")
-        minLabel.textColor = .secondaryLabelColor
-        let durationRow = NSStackView(views: [durationField, durationStepper, minLabel])
-        durationRow.orientation = .horizontal
-        durationRow.alignment = .firstBaseline
-        durationRow.spacing = 4
-
+        // Form layout: NSGridView is the cleanest way to align label-control pairs.
         let grid = NSGridView(views: [
-            [NSTextField(labelWithString: "Date"),     datePicker],
-            [NSTextField(labelWithString: "Category"), categorySegmented],
-            [NSTextField(labelWithString: "End time"), endTimePicker],
-            [NSTextField(labelWithString: "Duration"), durationRow],
+            [formLabel("Date"),     dateButton],
+            [formLabel("Category"), categorySegmented],
+            [formLabel("End time"), endTimePicker],
+            [formLabel("Duration"), durationRow],
         ])
         grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).width = 80
         grid.rowAlignment = .firstBaseline
-        grid.columnSpacing = 12
-        grid.rowSpacing = 10
+        grid.columnSpacing = 16
+        grid.rowSpacing = 20
 
-        let buttonRow = NSStackView(views: [NSView(), cancelButton, addButton])
+        // Trailing-aligned button row: Cancel then Add.
+        let buttonRow = NSStackView()
         buttonRow.orientation = .horizontal
-        buttonRow.spacing = 8
-        buttonRow.distribution = .fill
+        buttonRow.spacing = 12
+        buttonRow.addView(cancelButton, in: .trailing)
+        buttonRow.addView(addButton, in: .trailing)
 
+        // Outer container with generous insets.
         let main = NSStackView(views: [grid, buttonRow])
         main.orientation = .vertical
-        main.spacing = 18
-        main.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+        main.spacing = 28
+        main.alignment = .leading
+        main.edgeInsets = NSEdgeInsets(top: 28, left: 36, bottom: 24, right: 36)
         main.translatesAutoresizingMaskIntoConstraints = false
 
         let host = NSView()
@@ -127,8 +171,52 @@ final class AddEntryWindow: NSWindowController {
             main.leadingAnchor.constraint(equalTo: host.leadingAnchor),
             main.trailingAnchor.constraint(equalTo: host.trailingAnchor),
             main.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+            buttonRow.trailingAnchor.constraint(equalTo: main.trailingAnchor, constant: -36),
+            grid.trailingAnchor.constraint(lessThanOrEqualTo: main.trailingAnchor, constant: -36),
         ])
         window?.contentView = host
+        updateDateButtonLabel()
+    }
+
+    private func formLabel(_ text: String) -> NSTextField {
+        let l = NSTextField(labelWithString: text)
+        l.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        l.textColor = .secondaryLabelColor
+        return l
+    }
+
+    private func updateDateButtonLabel() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let selected = cal.startOfDay(for: selectedDate)
+        let daysAgo = cal.dateComponents([.day], from: selected, to: today).day ?? 0
+        let title: String
+        if daysAgo == 0 {
+            title = "Today"
+        } else if daysAgo == 1 {
+            title = "Yesterday"
+        } else if (2...6).contains(daysAgo) {
+            let f = DateFormatter()
+            f.dateFormat = "EEEE, MMM d"
+            title = f.string(from: selectedDate)
+        } else {
+            let f = DateFormatter()
+            f.dateStyle = .long
+            f.timeStyle = .none
+            title = f.string(from: selectedDate)
+        }
+        dateButton.title = title
+    }
+
+    @objc private func showDatePopover() {
+        calendarPicker.dateValue = selectedDate
+        datePopover.show(relativeTo: dateButton.bounds, of: dateButton, preferredEdge: .maxY)
+    }
+
+    @objc private func calendarPickerChanged() {
+        selectedDate = calendarPicker.dateValue
+        updateDateButtonLabel()
+        validate()
     }
 
     @objc private func stepperChanged() {
@@ -144,8 +232,7 @@ final class AddEntryWindow: NSWindowController {
     @objc private func controlChanged() { validate() }
 
     private func validate() {
-        let minutes = durationField.integerValue
-        addButton.isEnabled = minutes > 0
+        addButton.isEnabled = durationField.integerValue > 0
     }
 
     @objc private func addTapped() {
@@ -155,9 +242,8 @@ final class AddEntryWindow: NSWindowController {
         let category = categories[segIndex]
 
         let cal = Calendar.current
-        let date = datePicker.dateValue
         let endTimeOfDay = endTimePicker.dateValue
-        var combined = cal.dateComponents([.year, .month, .day], from: date)
+        var combined = cal.dateComponents([.year, .month, .day], from: selectedDate)
         let hm = cal.dateComponents([.hour, .minute], from: endTimeOfDay)
         combined.hour = hm.hour
         combined.minute = hm.minute
