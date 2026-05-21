@@ -65,10 +65,10 @@ extension AppDelegate {
         let monthTotals = mergedTotals(TimeAggregator.totalsForMonth(), rangeStart: monthStart)
 
         addTotalsSection(title: "Today", totals: todayTotals, showGrandTotal: true)
-        let weekItem = NSMenuItem(title: "This week:  " + inlineTotals(weekTotals), action: nil, keyEquivalent: "")
+        let weekItem = NSMenuItem(title: "This week (incl. today):  " + inlineTotals(weekTotals), action: nil, keyEquivalent: "")
         weekItem.isEnabled = false
         totalsMenu.addItem(weekItem)
-        let monthItem = NSMenuItem(title: "This month: " + inlineTotals(monthTotals), action: nil, keyEquivalent: "")
+        let monthItem = NSMenuItem(title: "This month (incl. today): " + inlineTotals(monthTotals), action: nil, keyEquivalent: "")
         monthItem.isEnabled = false
         totalsMenu.addItem(monthItem)
         totalsMenu.addItem(.separator())
