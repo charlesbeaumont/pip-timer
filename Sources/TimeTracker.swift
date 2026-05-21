@@ -73,6 +73,12 @@ final class TimeTracker {
         UserDefaults.standard.removeObject(forKey: Defaults.lastAliveAt)
     }
 
+    func addEntry(category: WorkCategory, start: Date, end: Date) {
+        guard end > start else { return }
+        // force: true skips the 30s minimum — manual entries are intentional.
+        finalize((category: category, startTime: start), endTime: end, force: true)
+    }
+
     func stopAndResume(at idleStartTime: Date) {
         guard let current = active else { return }
         let category = current.category

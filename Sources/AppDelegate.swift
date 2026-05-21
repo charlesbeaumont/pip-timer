@@ -17,6 +17,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     var recoveryKind: RecoveryKind?
     var idleNotificationVisible = false
     var sleepStartedAt: Date?
+    lazy var addEntryWindow: AddEntryWindow = {
+        let w = AddEntryWindow()
+        w.onAdd = { [weak self] category, start, end in
+            self?.tracker.addEntry(category: category, start: start, end: end)
+            self?.updateDisplay()
+        }
+        return w
+    }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -124,6 +132,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     @objc func menuResetStandup() {
         standup.reset()
         updateDisplay()
+    }
+
+    @objc func menuAddEntry() {
+        addEntryWindow.presentWithDefaults(lastCategory: tracker.lastCategory)
     }
 
     @objc func menuPickInterval(_ sender: NSMenuItem) {

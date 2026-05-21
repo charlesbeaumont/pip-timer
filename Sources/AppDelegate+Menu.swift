@@ -35,6 +35,10 @@ extension AppDelegate {
         reset.target = self
         reset.image = StatusItemRenderer.symbol("arrow.counterclockwise")
         menu.addItem(reset)
+        let add = NSMenuItem(title: "Add entry…", action: #selector(menuAddEntry), keyEquivalent: "")
+        add.target = self
+        add.image = StatusItemRenderer.symbol("plus")
+        menu.addItem(add)
     }
 
     private func addCategoryItems() {
