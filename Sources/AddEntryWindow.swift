@@ -55,7 +55,9 @@ final class AddEntryWindow: NSWindowController {
 
     private func setupUI() {
         // Date button — opens a popover with the calendar picker.
-        dateButton.bezelStyle = .rounded
+        // .roundRect matches the height of NSDatePicker / NSSegmentedControl
+        // (~22pt) so the row sits flush with the others.
+        dateButton.bezelStyle = .roundRect
         dateButton.title = ""
         dateButton.alignment = .left
         dateButton.target = self
@@ -176,6 +178,17 @@ final class AddEntryWindow: NSWindowController {
         ])
         window?.contentView = host
         updateDateButtonLabel()
+
+        // Tab chain: macOS skips non-text controls unless we opt them in
+        // explicitly. Set refusesFirstResponder=false on each control we
+        // want focusable, then wire next/previous as a cycle.
+        [dateButton, categorySegmented, endTimePicker, durationField, cancelButton, addButton]
+            .forEach { $0.refusesFirstResponder = false }
+        let chain: [NSView] = [dateButton, categorySegmented, endTimePicker, durationField, cancelButton, addButton]
+        for (i, view) in chain.enumerated() {
+            view.nextKeyView = chain[(i + 1) % chain.count]
+        }
+        window?.initialFirstResponder = dateButton
     }
 
     private func formLabel(_ text: String) -> NSTextField {
