@@ -55,6 +55,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         RunLoop.main.add(tick!, forMode: .common)
         updateDisplay()
 
+        // Cross-process state sync: when another Pip instance changes state,
+        // refresh our in-memory caches and redraw.
+        StateSync.observe { [weak self] in
+            guard let self = self else { return }
+            self.standup.refreshFromDefaults()
+            self.tracker.refreshFromDefaults()
+            // Idle watcher's poll interval is derived from thresholdSeconds at
+            // start time; if another process changed it, restart so we pick up
+            // the new interval. The thresholds themselves are read live so no
+            // in-memory cache to refresh.
+            self.idleWatcher.stop()
+            self.idleWatcher.start()
+            self.updateDisplay()
+        }
+
         // If we found an orphan active session at launch (unclean previous exit),
         // surface a recovery prompt. Defer slightly so notification authorization
         // has a chance to settle.

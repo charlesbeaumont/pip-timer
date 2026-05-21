@@ -18,11 +18,27 @@ final class TimerController {
     static let intervalOptions: [Int] = [10, 900, 1200, 1500, 1800, 2700, 3600]
 
     private(set) var startTime: Date {
-        didSet { UserDefaults.standard.set(startTime, forKey: Defaults.startTime) }
+        didSet {
+            UserDefaults.standard.set(startTime, forKey: Defaults.startTime)
+            StateSync.broadcast()
+        }
     }
 
     var intervalSeconds: Int {
-        didSet { UserDefaults.standard.set(intervalSeconds, forKey: Defaults.intervalSeconds) }
+        didSet {
+            UserDefaults.standard.set(intervalSeconds, forKey: Defaults.intervalSeconds)
+            StateSync.broadcast()
+        }
+    }
+
+    func refreshFromDefaults() {
+        let defaults = UserDefaults.standard
+        let storedInterval = defaults.integer(forKey: Defaults.intervalSeconds)
+        let newInterval = storedInterval > 0 ? storedInterval : Self.defaultIntervalSeconds
+        if newInterval != intervalSeconds { intervalSeconds = newInterval }
+        if let stored = defaults.object(forKey: Defaults.startTime) as? Date, stored != startTime {
+            startTime = stored
+        }
     }
 
     init() {

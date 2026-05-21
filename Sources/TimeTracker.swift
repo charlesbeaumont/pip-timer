@@ -43,6 +43,7 @@ final class TimeTracker {
 
     static func setVaultRoot(_ path: String) {
         UserDefaults.standard.set(path, forKey: Defaults.vaultRoot)
+        StateSync.broadcast()
     }
 
     func start(_ category: WorkCategory) {
@@ -55,6 +56,7 @@ final class TimeTracker {
         persistActive(session)
         UserDefaults.standard.set(category.rawValue, forKey: Defaults.lastCategory)
         startHeartbeat()
+        StateSync.broadcast()
     }
 
     func startLastCategory() {
@@ -71,6 +73,7 @@ final class TimeTracker {
         stopHeartbeat()
         UserDefaults.standard.removeObject(forKey: Defaults.activeSession)
         UserDefaults.standard.removeObject(forKey: Defaults.lastAliveAt)
+        StateSync.broadcast()
     }
 
     func addEntry(category: WorkCategory, start: Date, end: Date) {
@@ -88,6 +91,26 @@ final class TimeTracker {
         persistActive(session)
         // Heartbeat keeps running across stopAndResume.
         UserDefaults.standard.set(Date(), forKey: Defaults.lastAliveAt)
+        StateSync.broadcast()
+    }
+
+    func refreshFromDefaults() {
+        if let data = UserDefaults.standard.data(forKey: Defaults.activeSession),
+           let session = try? JSONDecoder().decode(ActiveSession.self, from: data) {
+            // Active session present in defaults. Don't finalize any previous
+            // in-memory session here — the process that triggered the change
+            // already wrote the markdown line via its own start/stop call.
+            let same = active?.category == session.category && active?.startTime == session.startTime
+            if !same {
+                active = (session.category, session.startTime)
+                startHeartbeat()
+            }
+        } else {
+            if active != nil {
+                active = nil
+                stopHeartbeat()
+            }
+        }
     }
 
     // MARK: - Recovery (called from AppDelegate when pendingRecovery is set)

@@ -27,10 +27,12 @@ final class IdleWatcher {
 
     func setThreshold(_ seconds: Int) {
         UserDefaults.standard.set(seconds, forKey: Defaults.idleThresholdSeconds)
+        StateSync.broadcast()
     }
 
     func setBreakThreshold(_ seconds: Int) {
         UserDefaults.standard.set(seconds, forKey: Defaults.breakThresholdSeconds)
+        StateSync.broadcast()
     }
 
     static func thresholdLabel(forSeconds s: Int) -> String {
