@@ -92,6 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     @objc private func handleWake() {
+        NSLog("[Pip.wake] handleWake fired; priorSleep=\(sleepStartedAt?.description ?? "nil")")
         let priorSleep = sleepStartedAt
         sleepStartedAt = nil
         standup.reset()
@@ -110,11 +111,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         // Don't stop the tracker here — that's the old behavior that lost time
         // on lid-close. Just record when sleep started; handleWake decides
         // whether to silently resume or prompt the user.
+        NSLog("[Pip.sleep] handleSleep fired at \(Date())")
         sleepStartedAt = Date()
         updateDisplay()
     }
 
     private func handleBreakDetected(idleSeconds: TimeInterval) {
+        NSLog("[Pip.break] handleBreakDetected idleSeconds=\(Int(idleSeconds))")
         standup.reset()
         updateDisplay()
     }

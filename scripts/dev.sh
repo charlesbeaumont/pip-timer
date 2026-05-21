@@ -26,8 +26,12 @@ rebuild() {
       build >"$LOG" 2>&1; then
     pkill -f "$APP/Contents/MacOS/Pip" 2>/dev/null || true
     sleep 0.2
-    nohup "$APP/Contents/MacOS/Pip" >>"$RUNTIME_LOG" 2>&1 &
-    disown
+    # Launch via `open` so the app registers with LaunchServices and receives
+    # NSWorkspace notifications (sleep/wake, in particular). `--stdout/--stderr`
+    # still capture NSLog output to the runtime log. Running the binary
+    # directly via nohup skips Cocoa app initialization and silently breaks
+    # sleep/wake event delivery.
+    open --stdout "$RUNTIME_LOG" --stderr "$RUNTIME_LOG" "$APP"
     printf '[%s] relaunched (runtime log: %s)\n' "$(date +%H:%M:%S)" "$RUNTIME_LOG"
   else
     printf '[%s] build failed:\n' "$(date +%H:%M:%S)"
