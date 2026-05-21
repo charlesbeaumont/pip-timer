@@ -2,6 +2,10 @@ import AppKit
 import ServiceManagement
 import UserNotifications
 
+enum RecoveryKind {
+    case idle, sleep, crash
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
     var statusItem: NSStatusItem!
     let standup = TimerController()
@@ -9,8 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     let idleWatcher = IdleWatcher()
     var tick: Timer?
     var menu = NSMenu()
-    var idleAtTime: Date?
+    var gapStartTime: Date?
+    var recoveryKind: RecoveryKind?
     var idleNotificationVisible = false
+    var sleepStartedAt: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -40,6 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         tick = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in self?.updateDisplay() }
         RunLoop.main.add(tick!, forMode: .common)
         updateDisplay()
+
+        // If we found an orphan active session at launch (unclean previous exit),
+        // surface a recovery prompt. Defer slightly so notification authorization
+        // has a chance to settle.
+        if tracker.pendingRecovery != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.presentCrashRecovery()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -54,12 +69,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     @objc private func handleWake() {
+        let priorSleep = sleepStartedAt
+        sleepStartedAt = nil
         standup.reset()
+        if let sleepStart = priorSleep, let active = tracker.active {
+            let gap = Date().timeIntervalSince(sleepStart)
+            let threshold = TimeInterval(idleWatcher.thresholdSeconds)
+            if gap >= threshold {
+                presentSleepRecovery(category: active.category, sleepStart: sleepStart)
+            }
+            // gap < threshold → silently resume; tracker.active was never cleared.
+        }
         updateDisplay()
     }
 
     @objc private func handleSleep() {
-        tracker.stop()
+        // Don't stop the tracker here — that's the old behavior that lost time
+        // on lid-close. Just record when sleep started; handleWake decides
+        // whether to silently resume or prompt the user.
+        sleepStartedAt = Date()
         updateDisplay()
     }
 

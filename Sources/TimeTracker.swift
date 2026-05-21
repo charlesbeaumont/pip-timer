@@ -2,6 +2,7 @@ import Foundation
 
 final class TimeTracker {
     static let minimumSessionSeconds: TimeInterval = 30
+    static let heartbeatIntervalSeconds: TimeInterval = 10
 
     private struct ActiveSession: Codable {
         let category: WorkCategory
@@ -9,9 +10,20 @@ final class TimeTracker {
     }
 
     private(set) var active: (category: WorkCategory, startTime: Date)?
+    private(set) var pendingRecovery: (category: WorkCategory, startTime: Date, lastAliveAt: Date)?
+
+    private var heartbeat: Timer?
 
     init() {
-        UserDefaults.standard.removeObject(forKey: Defaults.activeSession)
+        // Don't auto-discard the orphan; an `activeSession` left in UserDefaults
+        // after launch means the previous Pip didn't reach applicationWillTerminate
+        // (kill -9, panic, force quit). Surface it as a pendingRecovery for the
+        // AppDelegate to present a UNNotification.
+        if let data = UserDefaults.standard.data(forKey: Defaults.activeSession),
+           let session = try? JSONDecoder().decode(ActiveSession.self, from: data) {
+            let lastAlive = UserDefaults.standard.object(forKey: Defaults.lastAliveAt) as? Date ?? session.startTime
+            pendingRecovery = (session.category, session.startTime, lastAlive)
+        }
     }
 
     var isTracking: Bool { active != nil }
@@ -42,6 +54,7 @@ final class TimeTracker {
         active = (category, session.startTime)
         persistActive(session)
         UserDefaults.standard.set(category.rawValue, forKey: Defaults.lastCategory)
+        startHeartbeat()
     }
 
     func startLastCategory() {
@@ -55,7 +68,9 @@ final class TimeTracker {
         guard let current = active else { return }
         finalize(current, endTime: endTime, force: force)
         active = nil
+        stopHeartbeat()
         UserDefaults.standard.removeObject(forKey: Defaults.activeSession)
+        UserDefaults.standard.removeObject(forKey: Defaults.lastAliveAt)
     }
 
     func stopAndResume(at idleStartTime: Date) {
@@ -65,6 +80,49 @@ final class TimeTracker {
         let session = ActiveSession(category: category, startTime: Date())
         active = (category, session.startTime)
         persistActive(session)
+        // Heartbeat keeps running across stopAndResume.
+        UserDefaults.standard.set(Date(), forKey: Defaults.lastAliveAt)
+    }
+
+    // MARK: - Recovery (called from AppDelegate when pendingRecovery is set)
+
+    func discardPendingRecovery() {
+        pendingRecovery = nil
+        UserDefaults.standard.removeObject(forKey: Defaults.activeSession)
+        UserDefaults.standard.removeObject(forKey: Defaults.lastAliveAt)
+    }
+
+    func finalizeRecovery(at endTime: Date) {
+        guard let r = pendingRecovery else { return }
+        finalize((r.category, r.startTime), endTime: endTime, force: true)
+        discardPendingRecovery()
+    }
+
+    func resumeRecovery() {
+        guard let r = pendingRecovery else { return }
+        active = (r.category, r.startTime)
+        pendingRecovery = nil
+        // activeSession already in UserDefaults from the previous run.
+        UserDefaults.standard.set(r.category.rawValue, forKey: Defaults.lastCategory)
+        startHeartbeat()
+    }
+
+    // MARK: - Heartbeat
+
+    private func startHeartbeat() {
+        stopHeartbeat()
+        UserDefaults.standard.set(Date(), forKey: Defaults.lastAliveAt)
+        let timer = Timer(timeInterval: Self.heartbeatIntervalSeconds, repeats: true) { [weak self] _ in
+            guard self?.active != nil else { return }
+            UserDefaults.standard.set(Date(), forKey: Defaults.lastAliveAt)
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        heartbeat = timer
+    }
+
+    private func stopHeartbeat() {
+        heartbeat?.invalidate()
+        heartbeat = nil
     }
 
     private func persistActive(_ session: ActiveSession) {

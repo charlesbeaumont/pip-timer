@@ -27,9 +27,15 @@ final class TimerController {
 
     init() {
         let defaults = UserDefaults.standard
-        self.startTime = defaults.object(forKey: Defaults.startTime) as? Date ?? Date()
         let stored = defaults.integer(forKey: Defaults.intervalSeconds)
         self.intervalSeconds = stored > 0 ? stored : Self.defaultIntervalSeconds
+        let storedStart = defaults.object(forKey: Defaults.startTime) as? Date ?? Date()
+        let storedBreak = defaults.integer(forKey: Defaults.breakThresholdSeconds)
+        let breakThreshold = TimeInterval(storedBreak > 0 ? storedBreak : IdleWatcher.defaultBreakSeconds)
+        // If the stored standup start time is older than the break threshold, treat
+        // it as stale (e.g. Pip was quit overnight) and reset to now. Avoids
+        // showing "14:23" in the menu bar the morning after a reboot.
+        self.startTime = Date().timeIntervalSince(storedStart) > breakThreshold ? Date() : storedStart
     }
 
     var elapsed: TimeInterval { Date().timeIntervalSince(startTime) }

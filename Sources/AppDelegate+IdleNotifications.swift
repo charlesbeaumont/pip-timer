@@ -3,7 +3,10 @@ import UserNotifications
 
 extension AppDelegate {
     static let idleCategoryId = "PIP_IDLE"
-    static let actionStopAtIdle = "STOP_AT_IDLE"
+    static let sleepCategoryId = "PIP_SLEEP"
+    static let crashCategoryId = "PIP_CRASH"
+    static let notificationRequestId = "PIP_RECOVERY"
+    static let actionStopAtGap = "STOP_AT_GAP"
     static let actionContinue = "CONTINUE"
     static let actionStopAndResume = "STOP_AND_RESUME"
 
@@ -12,16 +15,38 @@ extension AppDelegate {
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error { NSLog("[Pip] notification authorization error: \(error)") }
-            if !granted { NSLog("[Pip] notifications not granted — idle prompts will not appear until enabled in System Settings") }
+            if !granted { NSLog("[Pip] notifications not granted — recovery prompts will not appear until enabled in System Settings") }
         }
         center.getNotificationSettings { settings in
             NSLog("[Pip] notification auth status at launch: \(Self.authStatusName(settings.authorizationStatus))")
         }
-        let stopAtIdle = UNNotificationAction(identifier: Self.actionStopAtIdle, title: "Stop at inactivity time", options: [])
         let cont = UNNotificationAction(identifier: Self.actionContinue, title: "Continue tracking", options: [])
-        let stopAndResume = UNNotificationAction(identifier: Self.actionStopAndResume, title: "Stop and resume now", options: [])
-        let category = UNNotificationCategory(identifier: Self.idleCategoryId, actions: [stopAtIdle, cont, stopAndResume], intentIdentifiers: [], options: [.customDismissAction])
-        center.setNotificationCategories([category])
+        let resume = UNNotificationAction(identifier: Self.actionStopAndResume, title: "Stop and resume now", options: [])
+        let idle = UNNotificationCategory(
+            identifier: Self.idleCategoryId,
+            actions: [
+                UNNotificationAction(identifier: Self.actionStopAtGap, title: "Stop at inactivity time", options: []),
+                cont, resume,
+            ],
+            intentIdentifiers: [], options: [.customDismissAction]
+        )
+        let sleep = UNNotificationCategory(
+            identifier: Self.sleepCategoryId,
+            actions: [
+                UNNotificationAction(identifier: Self.actionStopAtGap, title: "Stop at sleep time", options: []),
+                cont, resume,
+            ],
+            intentIdentifiers: [], options: [.customDismissAction]
+        )
+        let crash = UNNotificationCategory(
+            identifier: Self.crashCategoryId,
+            actions: [
+                UNNotificationAction(identifier: Self.actionStopAtGap, title: "Stop at last activity", options: []),
+                cont, resume,
+            ],
+            intentIdentifiers: [], options: [.customDismissAction]
+        )
+        center.setNotificationCategories([idle, sleep, crash])
     }
 
     private static func authStatusName(_ status: UNAuthorizationStatus) -> String {
@@ -35,18 +60,68 @@ extension AppDelegate {
         }
     }
 
+    // MARK: - Public entry points (one per gap source)
+
     func presentIdleNotification(idleSeconds: TimeInterval) {
         guard let active = tracker.active else { return }
-        if idleNotificationVisible { return }
         let idleStart = Date().addingTimeInterval(-idleSeconds)
+        let units = idleSeconds >= 60 ? "\(Int(idleSeconds / 60)) min" : "\(Int(idleSeconds)) sec"
+        present(
+            kind: .idle,
+            category: active.category,
+            gapStart: idleStart,
+            title: "Inactive for \(units)",
+            body: "Tracking \(active.category.displayName) — inactive since \(TimeTracker.timeString(idleStart)). What would you like to do?"
+        )
+    }
+
+    func presentSleepRecovery(category: WorkCategory, sleepStart: Date) {
+        let gap = Date().timeIntervalSince(sleepStart)
+        let units = gap >= 3600 ? String(format: "%.1f h", gap / 3600) : "\(Int(gap / 60)) min"
+        dismissIdleNotification()
+        present(
+            kind: .sleep,
+            category: category,
+            gapStart: sleepStart,
+            title: "Asleep for \(units)",
+            body: "Tracking \(category.displayName) — closed lid at \(TimeTracker.timeString(sleepStart)). What would you like to do?"
+        )
+    }
+
+    func presentCrashRecovery() {
+        guard let r = tracker.pendingRecovery else { return }
+        let gap = Date().timeIntervalSince(r.lastAliveAt)
+        let ago: String
+        if gap >= 86400 {
+            ago = String(format: "%.1f d ago", gap / 86400)
+        } else if gap >= 3600 {
+            ago = String(format: "%.1f h ago", gap / 3600)
+        } else {
+            ago = "\(Int(gap / 60)) min ago"
+        }
+        present(
+            kind: .crash,
+            category: r.category,
+            gapStart: r.lastAliveAt,
+            title: "Pip didn't quit cleanly",
+            body: "Tracking \(r.category.displayName) from \(TimeTracker.timeString(r.startTime)) — last seen at \(TimeTracker.timeString(r.lastAliveAt)) (\(ago)). What should I do with the time?"
+        )
+    }
+
+    // MARK: - Shared presenter
+
+    private func present(kind: RecoveryKind, category: WorkCategory, gapStart: Date, title: String, body: String) {
+        if idleNotificationVisible { return }
         let content = UNMutableNotificationContent()
-        let minutes = Int(idleSeconds / 60)
-        let units = minutes > 0 ? "\(minutes) min" : "\(Int(idleSeconds)) sec"
-        content.title = "Inactive for \(units)"
-        content.body = "Tracking \(active.category.displayName) — inactive since \(TimeTracker.timeString(idleStart)). What would you like to do?"
-        content.categoryIdentifier = Self.idleCategoryId
+        content.title = title
+        content.body = body
+        switch kind {
+        case .idle:  content.categoryIdentifier = Self.idleCategoryId
+        case .sleep: content.categoryIdentifier = Self.sleepCategoryId
+        case .crash: content.categoryIdentifier = Self.crashCategoryId
+        }
         content.interruptionLevel = .timeSensitive
-        let request = UNNotificationRequest(identifier: Self.idleCategoryId, content: content, trigger: nil)
+        let request = UNNotificationRequest(identifier: Self.notificationRequestId, content: content, trigger: nil)
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { [weak self] settings in
             guard let self = self else { return }
@@ -56,19 +131,22 @@ extension AppDelegate {
                 center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, error in
                     if let error = error { NSLog("[Pip] auth request error: \(error)") }
                     if granted {
-                        DispatchQueue.main.async { self?.presentIdleNotification(idleSeconds: idleSeconds) }
+                        DispatchQueue.main.async {
+                            self?.present(kind: kind, category: category, gapStart: gapStart, title: title, body: body)
+                        }
                     } else {
-                        NSLog("[Pip] auth denied or dismissed by user — idle prompt skipped")
+                        NSLog("[Pip] auth denied or dismissed by user — recovery prompt skipped")
                     }
                 }
                 return
             }
             guard status == .authorized || status == .provisional else {
-                NSLog("[Pip] idle prompt skipped — auth status is \(Self.authStatusName(status)). Enable in System Settings → Notifications → Pip.")
+                NSLog("[Pip] recovery prompt skipped — auth status is \(Self.authStatusName(status)). Enable in System Settings → Notifications → Pip.")
                 return
             }
             DispatchQueue.main.async {
-                self.idleAtTime = idleStart
+                self.gapStartTime = gapStart
+                self.recoveryKind = kind
                 self.idleNotificationVisible = true
                 center.add(request) { error in
                     if let error = error {
@@ -81,8 +159,9 @@ extension AppDelegate {
     }
 
     func dismissIdleNotification() {
-        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [Self.idleCategoryId])
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.idleCategoryId])
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: [Self.notificationRequestId])
+        center.removePendingNotificationRequests(withIdentifiers: [Self.notificationRequestId])
         idleNotificationVisible = false
     }
 
@@ -91,19 +170,38 @@ extension AppDelegate {
     }
 
     public func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        let idleStart = idleAtTime ?? Date()
-        switch response.actionIdentifier {
-        case Self.actionStopAtIdle:
-            tracker.stop(at: idleStart, force: true)
-        case Self.actionStopAndResume:
-            tracker.stopAndResume(at: idleStart)
-        case Self.actionContinue:
+        let kind = recoveryKind ?? .idle
+        let gap = gapStartTime ?? Date()
+        let action = response.actionIdentifier
+
+        switch (kind, action) {
+        case (.idle, Self.actionStopAtGap), (.sleep, Self.actionStopAtGap):
+            tracker.stop(at: gap, force: true)
+        case (.idle, Self.actionStopAndResume), (.sleep, Self.actionStopAndResume):
+            tracker.stopAndResume(at: gap)
+        case (.idle, Self.actionContinue), (.sleep, Self.actionContinue):
             break
+
+        case (.crash, Self.actionStopAtGap):
+            tracker.finalizeRecovery(at: gap)
+        case (.crash, Self.actionContinue):
+            tracker.resumeRecovery()
+        case (.crash, Self.actionStopAndResume):
+            let cat = tracker.pendingRecovery?.category
+            tracker.finalizeRecovery(at: gap)
+            if let cat = cat { tracker.start(cat) }
+
         default:
-            break
+            // Dismissed without choosing. For idle/sleep that's "continue" (no-op).
+            // For crash we'd otherwise re-prompt forever on every launch — treat
+            // dismissal as "resume" so the orphan becomes an actual active
+            // session that can be stopped manually later.
+            if kind == .crash { tracker.resumeRecovery() }
         }
+
         idleWatcher.resetLatch()
-        idleAtTime = nil
+        gapStartTime = nil
+        recoveryKind = nil
         idleNotificationVisible = false
         DispatchQueue.main.async { [weak self] in self?.updateDisplay() }
         completionHandler()
