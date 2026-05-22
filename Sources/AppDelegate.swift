@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         // the elapsed idle time. The IdleWatcher resets its own latch internally,
         // and we guard against duplicate notifications via idleNotificationVisible.
         idleWatcher.onBreakCrossed = { [weak self] idle in self?.handleBreakDetected(idleSeconds: idle) }
+        idleWatcher.onBreakCleared = { [weak self] idle in self?.handleBreakCleared(idleSeconds: idle) }
         idleWatcher.start()
 
         tick = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in self?.updateDisplay() }
@@ -118,6 +119,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     private func handleBreakDetected(idleSeconds: TimeInterval) {
         NSLog("[Pip.break] handleBreakDetected idleSeconds=\(Int(idleSeconds))")
+        standup.reset()
+        updateDisplay()
+    }
+
+    private func handleBreakCleared(idleSeconds: TimeInterval) {
+        // User returned after being idle past the break threshold. Reset the
+        // standup so the ring reflects the current sitting session, not the
+        // moment they walked away. Without this the standup would still read
+        // (gap minus break-threshold) when they come back.
+        NSLog("[Pip.break] handleBreakCleared (user returned), resetting standup")
         standup.reset()
         updateDisplay()
     }

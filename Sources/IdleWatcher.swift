@@ -10,6 +10,7 @@ final class IdleWatcher {
     var onIdleCrossed: ((TimeInterval) -> Void)?
     var onIdleCleared: (() -> Void)?
     var onBreakCrossed: ((TimeInterval) -> Void)?
+    var onBreakCleared: ((TimeInterval) -> Void)?
 
     private var poll: Timer?
     private var isIdle = false
@@ -77,6 +78,7 @@ final class IdleWatcher {
             onBreakCrossed?(idleSeconds)
         } else if isBreak, idleSeconds < breakThreshold {
             isBreak = false
+            onBreakCleared?(idleSeconds)
         }
     }
 
