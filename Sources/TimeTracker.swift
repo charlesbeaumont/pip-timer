@@ -201,7 +201,7 @@ final class TimeTracker {
 
     @discardableResult
     private func writeHeader(at url: URL, for date: Date) -> Bool {
-        let header = "# Time Tracking — \(Self.dayString(date))\n\n## Sessions\n\n## Totals\n\n"
+        let header = "# Time Tracking — \(Self.dayString(date))\n\n## Sessions\n\n## Resets\n\n## Totals\n\n"
         do {
             try header.write(to: url, atomically: true, encoding: .utf8)
             return true
@@ -210,21 +210,53 @@ final class TimeTracker {
         }
     }
 
+    func recordReset(at time: Date, elapsedBefore: TimeInterval) {
+        guard let fileURL = fileURL(for: time) else {
+            NSLog("[Pip] Output directory not configured; reset not saved")
+            return
+        }
+        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if !FileManager.default.fileExists(atPath: fileURL.path) {
+            guard writeHeader(at: fileURL, for: time) else {
+                NSLog("[Pip] Could not write tracking file at \(fileURL.path)")
+                return
+            }
+        }
+        guard var contents = try? String(contentsOf: fileURL, encoding: .utf8) else {
+            NSLog("[Pip] Could not read tracking file at \(fileURL.path)")
+            return
+        }
+        let line = "- \(Self.timeString(time)) (after \(Self.durationString(elapsedBefore)))"
+        contents = insertLine(line, underSection: "## Resets", into: contents)
+        try? contents.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
     private func formatSession(category: WorkCategory, start: Date, end: Date) -> String {
         let duration = end.timeIntervalSince(start)
         return "- \(Self.timeString(start))–\(Self.timeString(end)) (\(Self.durationString(duration))) \(category.displayName)"
     }
 
     private func insertSessionLine(_ line: String, into contents: String) -> String {
+        return insertLine(line, underSection: "## Sessions", into: contents)
+    }
+
+    private func insertLine(_ line: String, underSection sectionHeader: String, into contents: String) -> String {
         var lines = contents.components(separatedBy: "\n")
-        guard let sessionsIdx = lines.firstIndex(where: { $0.hasPrefix("## Sessions") }) else {
-            return contents + line + "\n"
+        guard let sectionIdx = lines.firstIndex(where: { $0.hasPrefix(sectionHeader) }) else {
+            // Section missing — insert it before ## Totals (or at end if no Totals).
+            let block = ["", sectionHeader, "", line, ""]
+            if let totalsIdx = lines.firstIndex(where: { $0.hasPrefix("## Totals") }) {
+                lines.insert(contentsOf: block, at: totalsIdx)
+            } else {
+                lines.append(contentsOf: block)
+            }
+            return lines.joined(separator: "\n")
         }
-        var insertAt = sessionsIdx + 1
+        var insertAt = sectionIdx + 1
         while insertAt < lines.count, !lines[insertAt].hasPrefix("## ") {
             insertAt += 1
         }
-        while insertAt > sessionsIdx + 1, lines[insertAt - 1].trimmingCharacters(in: .whitespaces).isEmpty {
+        while insertAt > sectionIdx + 1, lines[insertAt - 1].trimmingCharacters(in: .whitespaces).isEmpty {
             insertAt -= 1
         }
         lines.insert(line, at: insertAt)

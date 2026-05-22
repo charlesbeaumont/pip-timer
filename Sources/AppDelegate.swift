@@ -159,7 +159,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     // MARK: - Menu actions
 
     @objc func menuResetStandup() {
+        let elapsedBefore = standup.elapsed
         standup.reset()
+        tracker.recordReset(at: Date(), elapsedBefore: elapsedBefore)
         updateDisplay()
     }
 
