@@ -30,7 +30,11 @@ Sources/
   StatusItemRenderer.swift                  ring/dot drawing (pure functions) + SF Symbol helper
   TimerController.swift                     standup state (elapsed, persistence, color)
   TimeTracker.swift                         active session, sleep/quit finalization, markdown writer
-  TimeAggregator.swift                      parse <vault>/*.md, sum per category
+  TimeTracker+Editing.swift                 entries(for:) + replaceSessions — read/rewrite of ## Sessions
+  TimeAggregator.swift                      parse <vault>/*.md, sum per category, parseEntryLine
+  AddEntryWindow.swift                      "Add entry…" form (retroactive quick-add, end + duration)
+  EditEntriesWindow.swift                   "Edit entries…" day browser + entry editor (corrective UI)
+  StateSync.swift                           cross-process sync via DistributedNotificationCenter
   IdleWatcher.swift                         polls IOHIDIdleTime, fires onIdleCrossed + onBreakCrossed
   Category.swift                            WorkCategory enum + color + SF Symbol name per category
   Defaults.swift                            UserDefaults key constants (all of them)
@@ -59,14 +63,14 @@ xcodegen generate
 - **AppKit `NSStatusItem`**, not SwiftUI `MenuBarExtra` — can't cleanly distinguish left vs right click.
 - **No external dependencies at runtime.** Foundation + AppKit + ServiceManagement + UserNotifications + IOKit only. XcodeGen is build-time.
 - **Universal binary** (`ARCHS_STANDARD`, `ONLY_ACTIVE_ARCH = NO`).
-- **No Dock icon, no main window.** `LSUIElement = true`; activation policy implicit (no manual `setActivationPolicy`).
-- **~1000 lines of Swift** across 11 source files. Currently ~994. If a file is heading past 250 lines split it; if total passes 1200 you've overdesigned something.
+- **No Dock icon, no main window.** `LSUIElement = true`; activation policy implicit (no manual `setActivationPolicy`). The two utility windows (Add entry…, Edit entries…) are fine — they activate via `NSApp.activate(ignoringOtherApps: true)` on present.
+- **~2200 lines of Swift** across 15 source files. If a file is heading past 400 lines split it; if total passes 2500 you've overdesigned something.
 
 ## Out of scope — do not add
 
 - Notifications other than the idle prompt
 - Auto-tracking by frontmost app
-- Statistics, history viewer, CSV export (the markdown IS the export)
+- Statistics, aggregation views, charts, CSV export (the markdown IS the export). The entry editor is corrective — it shows one day's raw lines and edits them, nothing more.
 - Pomodoro modes, work hours, DND integration
 - More than four categories (dilutes the signal)
 - Keyboard shortcuts, URL schemes, onboarding
@@ -79,7 +83,7 @@ xcodegen generate
 - **Time rendering**: `NSFont.monospacedDigitSystemFont` on the status item button. Without it, digits jitter horizontally each second.
 - **Tick timer** must be added to `RunLoop.main` in `.common` mode — otherwise display freezes while a menu is open.
 - **Menu structure**: 4 top-level groups separated by `.separator()`:
-  1. Actions (Stop/Start Tracker + Reset Timer)
+  1. Actions (Stop/Start Tracker, Reset Timer, Add entry…, Edit entries…)
   2. Categories (4 rows)
   3. Totals submenu + Configure submenu
   4. Quit
@@ -90,7 +94,8 @@ xcodegen generate
 - **Quit behavior**: `applicationWillTerminate` calls `tracker.stop()` + `idleWatcher.stop()`. `tracker.stop()` removes `activeSession` and `lastAliveAt` from UserDefaults — so a clean quit leaves nothing to recover on next launch. `kill -9` skips this path; on next launch the orphan triggers the crash-recovery prompt.
 - **30-second minimum session**: `TimeTracker.finalize` drops sessions shorter than `minimumSessionSeconds = 30` — unless `force: true` is passed, which the idle popup paths use because those are deliberate user-confirmed actions. Don't make the minimum configurable.
 - **Midnight rollover**: `TimeTracker.finalize` recursively splits a session that crosses midnight, writing the start portion to today's file and the rest to tomorrow's. Rare but correct.
-- **Markdown format**: `## Sessions` (append-only) + `## Totals` (rewritten from sessions on every write). `TimeAggregator.parseSessions` is the parser; both `TimeTracker.rewriteTotals` and `TimeAggregator.totalsFor*` use it. If you change the line format, update the parser at the same time.
+- **Markdown format**: `## Sessions` (append-only while tracking) + `## Totals` (rewritten from sessions on every write). `TimeAggregator.parseSessions` is the parser; both `TimeTracker.rewriteTotals` and `TimeAggregator.totalsFor*` use it. `TimeAggregator.parseEntryLine` additionally parses start/end for the editor. If you change the line format, update both parsers at the same time.
+- **Entry editor** (`EditEntriesWindow` + `TimeTracker+Editing`): each Add/Update/Delete does read file → mutate → `replaceSessions` → write, no Save button and no dirty state. `replaceSessions` splices only the `## Sessions` block — unparseable `- ` lines are preserved verbatim at the top, parsed entries are re-sorted by start time and re-formatted via `formatSession` (durations always recomputed from start/end, which is how bad `(h:mm)` values get healed). End `00:00` means end of day (1440 min), matching the midnight-split writer. `TimeTracker.onFileWritten` fires after every markdown write; AppDelegate uses it to reload the editor when visible, so tracker finalizations mid-edit and the editor's own writes share one refresh path. The active session lives in memory, never in the file, so the editor shows it only as a footer note.
 - **Vault path**: `TimeTracker.vaultRoot` returns `Optional<String>` — reads from UserDefaults `vaultRoot` key, returns `nil` when unset. No default path baked in (deliberately, since this is OSS now and a hardcoded iCloud Octarine path would refer to one person's setup). Configurable via Configure → Output directory… (`NSOpenPanel`). When `nil`, `appendSession` early-returns with an `NSLog`; totals come back as zero; "Open today's tracking log" shows an alert pointing the user at Configure. Files are written **directly** into the chosen folder as `YYYY-MM-DD.md` — no `Daily/TimeTracking/` subdirectory is created (early versions did, which produced double-nested paths when users pointed Output directory at their own `…/Time Tracking/` folder).
 - **IdleWatcher**: uses IOKit `IOHIDSystem` → `HIDIdleTime` (nanoseconds). More reliable than `CGEventSource.secondsSinceLastEventType` on macOS Tahoe. Polls every 2s when idle threshold is sub-minute, otherwise 5s — anything coarser (30s was the original value) can miss the break-threshold boundary entirely, because the latch only fires when a poll observes `idleSeconds >= threshold`; the user could return between polls and the event is lost. Maintains two latches (`isIdle`, `isBreak`) for two independent thresholds.
 - **Idle prompt is a native UNNotification** with three action buttons. Set `.interruptionLevel = .timeSensitive` so Focus modes don't suppress it. The notification needs the user's System Settings → Notifications → Pip → Alert style = **Persistent** to stay visible until clicked. Critical: do NOT auto-dismiss the notification when idle clears — the user moving the mouse to interact with it would race the dismiss and the notification vanishes before they click. This was a real bug, kept around as a comment in `applicationDidFinishLaunching`.
@@ -99,7 +104,7 @@ xcodegen generate
 
 ## When making changes
 
-- Prefer editing existing files. There are 11 source files for ~1000 lines — that's already a lot of slicing.
+- Prefer editing existing files. There are 15 source files for ~2200 lines — that's already a lot of slicing.
 - After editing `project.yml`, regenerate the `.xcodeproj`.
 - After adding/removing source files, regenerate (XcodeGen scans `Sources/` automatically).
 - After non-trivial Swift edits, run the typecheck command above — it's free and catches API drift.

@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         }
         return w
     }()
+    var editEntriesWindow: EditEntriesWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -38,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
         menu.delegate = self
         buildMenu()
+
+        tracker.onFileWritten = { [weak self] in self?.editEntriesWindow?.reloadIfVisible() }
 
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(handleWake), name: NSWorkspace.didWakeNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(handleSleep), name: NSWorkspace.willSleepNotification, object: nil)
@@ -169,6 +172,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         addEntryWindow.presentWithDefaults(lastCategory: tracker.lastCategory)
     }
 
+    @objc func menuEditEntries() {
+        guard TimeTracker.vaultRoot != nil else {
+            let alert = NSAlert()
+            alert.messageText = "No output directory configured"
+            alert.informativeText = "Choose one via Configure → Output directory…"
+            alert.runModal()
+            return
+        }
+        if editEntriesWindow == nil { editEntriesWindow = EditEntriesWindow(tracker: tracker) }
+        editEntriesWindow?.present()
+    }
+
     @objc func menuPickInterval(_ sender: NSMenuItem) {
         standup.intervalSeconds = sender.tag
         updateDisplay()
@@ -188,18 +203,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         let category = WorkCategory.allCases[sender.tag]
         tracker.start(category)
         updateDisplay()
+        editEntriesWindow?.reloadIfVisible()
     }
 
     @objc func menuStartLastCategory() {
         guard tracker.lastCategory != nil else { return }
         tracker.startLastCategory()
         updateDisplay()
+        editEntriesWindow?.reloadIfVisible()
     }
 
     @objc func menuStopTracking() {
         tracker.stop()
         dismissIdleNotification()
         updateDisplay()
+        editEntriesWindow?.reloadIfVisible()
     }
 
     @objc func menuOpenLog() {
@@ -212,8 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         }
         if !FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let header = "# Time Tracking — \(TimeTracker.dayString(Date()))\n\n## Sessions\n\n## Totals\n\n"
-            try? header.write(to: url, atomically: true, encoding: .utf8)
+            tracker.writeHeader(at: url, for: Date())
         }
         NSWorkspace.shared.open(url)
     }
