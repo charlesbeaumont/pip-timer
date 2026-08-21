@@ -12,6 +12,8 @@ final class TimeTracker {
     private(set) var active: (category: WorkCategory, startTime: Date)?
     private(set) var pendingRecovery: (category: WorkCategory, startTime: Date, lastAliveAt: Date)?
 
+    var onFileWritten: (() -> Void)?
+
     private var heartbeat: Timer?
 
     init() {
@@ -197,10 +199,11 @@ final class TimeTracker {
         contents = insertSessionLine(line, into: contents)
         contents = rewriteTotals(in: contents)
         try? contents.write(to: fileURL, atomically: true, encoding: .utf8)
+        onFileWritten?()
     }
 
     @discardableResult
-    private func writeHeader(at url: URL, for date: Date) -> Bool {
+    func writeHeader(at url: URL, for date: Date) -> Bool {
         let header = "# Time Tracking — \(Self.dayString(date))\n\n## Sessions\n\n## Resets\n\n## Totals\n\n"
         do {
             try header.write(to: url, atomically: true, encoding: .utf8)
@@ -229,9 +232,10 @@ final class TimeTracker {
         let line = "- \(Self.timeString(time)) (after \(Self.durationString(elapsedBefore)))"
         contents = insertLine(line, underSection: "## Resets", into: contents)
         try? contents.write(to: fileURL, atomically: true, encoding: .utf8)
+        onFileWritten?()
     }
 
-    private func formatSession(category: WorkCategory, start: Date, end: Date) -> String {
+    func formatSession(category: WorkCategory, start: Date, end: Date) -> String {
         let duration = end.timeIntervalSince(start)
         return "- \(Self.timeString(start))–\(Self.timeString(end)) (\(Self.durationString(duration))) \(category.displayName)"
     }
@@ -263,7 +267,7 @@ final class TimeTracker {
         return lines.joined(separator: "\n")
     }
 
-    private func rewriteTotals(in contents: String) -> String {
+    func rewriteTotals(in contents: String) -> String {
         let sessions = TimeAggregator.parseSessions(from: contents)
         var totals: [WorkCategory: TimeInterval] = [:]
         for s in sessions { totals[s.category, default: 0] += s.duration }

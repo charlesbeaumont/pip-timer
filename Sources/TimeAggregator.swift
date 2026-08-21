@@ -30,6 +30,28 @@ struct TimeAggregator {
         return Session(category: category, duration: TimeInterval(h * 3600 + m * 60))
     }
 
+    static func parseEntryLine(_ line: String) -> (category: WorkCategory, startMinutes: Int, endMinutes: Int)? {
+        guard let session = parseSessionLine(line),
+              line.hasPrefix("- "),
+              let dash = line.firstIndex(of: "–"),
+              let openParen = line.firstIndex(of: "("),
+              dash < openParen else { return nil }
+        let startStr = line[line.index(line.startIndex, offsetBy: 2)..<dash].trimmingCharacters(in: .whitespaces)
+        let endStr = line[line.index(after: dash)..<openParen].trimmingCharacters(in: .whitespaces)
+        guard let start = minutesOfDay(startStr), var end = minutesOfDay(endStr) else { return nil }
+        // The midnight split writes "…–00:00" for a session ending at end of day.
+        if end == 0, start > 0 { end = 24 * 60 }
+        guard end >= start else { return nil }
+        return (session.category, start, end)
+    }
+
+    private static func minutesOfDay(_ hhmm: String) -> Int? {
+        let parts = hhmm.split(separator: ":")
+        guard parts.count == 2, let h = Int(parts[0]), let m = Int(parts[1]),
+              (0...23).contains(h), (0...59).contains(m) else { return nil }
+        return h * 60 + m
+    }
+
     static func totalsForToday() -> [WorkCategory: TimeInterval] {
         totals(for: [Date()])
     }

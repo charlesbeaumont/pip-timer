@@ -198,27 +198,25 @@ final class AddEntryWindow: NSWindowController {
         return l
     }
 
-    private func updateDateButtonLabel() {
+    static func dayLabel(for date: Date) -> String {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        let selected = cal.startOfDay(for: selectedDate)
+        let selected = cal.startOfDay(for: date)
         let daysAgo = cal.dateComponents([.day], from: selected, to: today).day ?? 0
-        let title: String
-        if daysAgo == 0 {
-            title = "Today"
-        } else if daysAgo == 1 {
-            title = "Yesterday"
-        } else if (2...6).contains(daysAgo) {
-            let f = DateFormatter()
+        if daysAgo == 0 { return "Today" }
+        if daysAgo == 1 { return "Yesterday" }
+        let f = DateFormatter()
+        if (2...6).contains(daysAgo) {
             f.dateFormat = "EEEE, MMM d"
-            title = f.string(from: selectedDate)
         } else {
-            let f = DateFormatter()
             f.dateStyle = .long
             f.timeStyle = .none
-            title = f.string(from: selectedDate)
         }
-        dateButton.title = title
+        return f.string(from: date)
+    }
+
+    private func updateDateButtonLabel() {
+        dateButton.title = Self.dayLabel(for: selectedDate)
     }
 
     @objc private func showDatePopover() {

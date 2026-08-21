@@ -39,6 +39,10 @@ extension AppDelegate {
         add.target = self
         add.image = StatusItemRenderer.symbol("plus")
         menu.addItem(add)
+        let edit = NSMenuItem(title: "Edit entries…", action: #selector(menuEditEntries), keyEquivalent: "")
+        edit.target = self
+        edit.image = StatusItemRenderer.symbol("pencil")
+        menu.addItem(edit)
     }
 
     private func addCategoryItems() {
